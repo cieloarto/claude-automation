@@ -18,7 +18,393 @@ echo "スクリプトディレクトリ: $SCRIPT_DIR"
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     echo "⚠️  セッション '$SESSION_NAME' は既に存在します。"
     read -p "アタッチしますか？ (y/n): " -n 1 -r
-    echo
+    echo# Claude Code 画像分析ワークフロー用関数
+    # claude-functions.sh に追加可能
+
+    # デザイン分析
+    analyze_design() {
+        local image_path="$1"
+        local description="$2"
+
+        if [ -z "$image_path" ]; then
+            echo "使用方法: analyze-design <画像パス> [説明]"
+            return 1
+        fi
+
+        local design_prompt="この画像を分析して、以下の観点から設計書を作成してください：
+
+【分析観点】
+1. UI/UXデザイン要素
+2. レイアウト構造
+3. コンポーネント分解
+4. 実装すべき機能一覧
+5. 技術要件
+
+【出力先】
+docs/design/ui-analysis.md
+
+画像: $image_path
+説明: ${description:-'デザイン分析'}
+
+詳細な分析をお願いします。"
+
+        tmux send-keys -t "$MANAGER_PANE" "echo '$design_prompt' | claude '$image_path'" C-m
+        echo "🎨 デザイン分析を開始: $image_path"
+    }
+
+    # 要件画像分析
+    analyze_requirements() {
+        local image_path="$1"
+        local description="$2"
+
+        if [ -z "$image_path" ]; then
+            echo "使用方法: analyze-requirements <画像パス> [説明]"
+            return 1
+        fi
+
+        local req_prompt="この画像から要件を抽出して、docs/requirements/requirements.md を作成してください：
+
+【抽出する要件】
+1. 機能要件（画像から読み取れる機能）
+2. 非機能要件（パフォーマンス、ユーザビリティ）
+3. 技術要件（推奨技術スタック）
+4. UI/UX要件（デザインガイドライン）
+
+画像: $image_path
+説明: ${description:-'要件画像分析'}
+
+要件定義書を作成してください。"
+
+        tmux send-keys -t "$MANAGER_PANE" "echo '$req_prompt' | claude '$image_path'" C-m
+        echo "📋 要件画像分析を開始: $image_path"
+    }
+
+    # エラー画面分析
+    analyze_error() {
+        local image_path="$1"
+        local team_num="$2"
+
+        if [ -z "$image_path" ] || [ -z "$team_num" ]; then
+            echo "使用方法: analyze-error <画像パス> <チーム番号>"
+            return 1
+        fi
+
+        if [ "$team_num" -ge 0 ] && [ "$team_num" -lt "${#TEAM_PANES[@]}" ]; then
+            local error_prompt="このエラー画面を分析して、解決方法を提案してください：
+
+【分析項目】
+1. エラーの原因特定
+2. 修正方法の提案
+3. 予防策の提案
+4. テストケースの追加
+
+【対応手順】
+1. 即座に修正可能な項目
+2. 中長期的な改善項目
+3. 関連する他の修正必要箇所
+
+エラー画像を詳細に分析してください。"
+
+            tmux send-keys -t "${TEAM_PANES[$team_num]}" "echo '$error_prompt' | claude '$image_path'" C-m
+            echo "🐛 エラー分析を開始: チーム$((team_num + 1)) → $image_path"
+        else
+            echo "❌ 無効なチーム番号: $team_num"
+        fi
+    }
+
+    # スクリーンショット自動撮影（macOS）
+    capture_and_analyze() {
+        local analysis_type="$1" # design, requirements, error
+        local team_num="$2"
+
+        echo "📸 スクリーンショットを撮影してください（3秒後開始）"
+        sleep 3
+
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        local screenshot_path="/tmp/claude_screenshot_${timestamp}.png"
+
+        # macOSでスクリーンショット撮影
+        screencapture -s "$screenshot_path"
+
+        if [ -f "$screenshot_path" ]; then
+            echo "✅ スクリーンショット保存: $screenshot_path"
+
+            case "$analysis_type" in
+            "design")
+                analyze_design "$screenshot_path" "スクリーンショット分析"
+                ;;
+            "requirements")
+                analyze_requirements "$screenshot_path" "スクリーンショット要件分析"
+                ;;
+            "error")
+                if [ -n "$team_num" ]; then
+                    analyze_error "$screenshot_path" "$team_num"
+                else
+                    echo "❌ エラー分析にはチーム番号が必要です"
+                fi
+                ;;
+            *)
+                echo "❌ 不明な分析タイプ: $analysis_type"
+                echo "利用可能: design, requirements, error"
+                ;;
+            esac
+        else
+            echo "❌ スクリーンショットの撮影に失敗しました"
+        fi
+    }
+
+    # QAテスト画面分析
+    qa_analyze_screen() {
+        local image_path="$1"
+        local test_type="$2" # ui, performance, accessibility
+
+        if [ -z "$image_path" ] || [ -z "$test_type" ]; then
+            echo "使用方法: qa-analyze-screen <画像パス> <テストタイプ>"
+            echo "テストタイプ: ui, performance, accessibility"
+            return 1
+        fi
+
+        local qa_prompt="この画面を${test_type}テストの観点から分析してください：
+
+【${test_type}テスト分析】"
+
+        case "$test_type" in
+        "ui")
+            qa_prompt="$qa_prompt
+1. レイアウトの妥当性
+2. ユーザビリティの問題
+3. デザインガイドライン準拠
+4. レスポンシブ対応"
+            ;;
+        "performance")
+            qa_prompt="$qa_prompt
+1. 表示速度の問題
+2. リソース使用量
+3. 最適化ポイント
+4. パフォーマンス改善提案"
+            ;;
+        "accessibility")
+            qa_prompt="$qa_prompt
+1. アクセシビリティ準拠
+2. 色彩対比の確認
+3. キーボード操作対応
+4. スクリーンリーダー対応"
+            ;;
+        esac
+
+        qa_prompt="$qa_prompt
+
+【出力】
+- 問題点の特定
+- 改善提案
+- テストケース追加
+- 品質基準への適合状況
+
+テスト結果をdocs/tests/に記録してください。"
+
+        tmux send-keys -t "$QA_PANE" "echo '$qa_prompt' | claude '$image_path'" C-m
+        echo "🔍 QA画面分析を開始: $test_type → $image_path"
+    }
+
+    # エイリアス追加
+    alias analyze-design='analyze_design'
+    alias analyze-requirements='analyze_requirements'
+    alias analyze-error='analyze_error'
+    alias capture-analyze='capture_and_analyze'
+    alias qa-analyze='qa_analyze_screen' # Claude Code 画像分析ワークフロー用関数
+    # claude-functions.sh に追加可能
+
+    # デザイン分析
+    analyze_design() {
+        local image_path="$1"
+        local description="$2"
+
+        if [ -z "$image_path" ]; then
+            echo "使用方法: analyze-design <画像パス> [説明]"
+            return 1
+        fi
+
+        local design_prompt="この画像を分析して、以下の観点から設計書を作成してください：
+
+【分析観点】
+1. UI/UXデザイン要素
+2. レイアウト構造
+3. コンポーネント分解
+4. 実装すべき機能一覧
+5. 技術要件
+
+【出力先】
+docs/design/ui-analysis.md
+
+画像: $image_path
+説明: ${description:-'デザイン分析'}
+
+詳細な分析をお願いします。"
+
+        tmux send-keys -t "$MANAGER_PANE" "echo '$design_prompt' | claude '$image_path'" C-m
+        echo "🎨 デザイン分析を開始: $image_path"
+    }
+
+    # 要件画像分析
+    analyze_requirements() {
+        local image_path="$1"
+        local description="$2"
+
+        if [ -z "$image_path" ]; then
+            echo "使用方法: analyze-requirements <画像パス> [説明]"
+            return 1
+        fi
+
+        local req_prompt="この画像から要件を抽出して、docs/requirements/requirements.md を作成してください：
+
+【抽出する要件】
+1. 機能要件（画像から読み取れる機能）
+2. 非機能要件（パフォーマンス、ユーザビリティ）
+3. 技術要件（推奨技術スタック）
+4. UI/UX要件（デザインガイドライン）
+
+画像: $image_path
+説明: ${description:-'要件画像分析'}
+
+要件定義書を作成してください。"
+
+        tmux send-keys -t "$MANAGER_PANE" "echo '$req_prompt' | claude '$image_path'" C-m
+        echo "📋 要件画像分析を開始: $image_path"
+    }
+
+    # エラー画面分析
+    analyze_error() {
+        local image_path="$1"
+        local team_num="$2"
+
+        if [ -z "$image_path" ] || [ -z "$team_num" ]; then
+            echo "使用方法: analyze-error <画像パス> <チーム番号>"
+            return 1
+        fi
+
+        if [ "$team_num" -ge 0 ] && [ "$team_num" -lt "${#TEAM_PANES[@]}" ]; then
+            local error_prompt="このエラー画面を分析して、解決方法を提案してください：
+
+【分析項目】
+1. エラーの原因特定
+2. 修正方法の提案
+3. 予防策の提案
+4. テストケースの追加
+
+【対応手順】
+1. 即座に修正可能な項目
+2. 中長期的な改善項目
+3. 関連する他の修正必要箇所
+
+エラー画像を詳細に分析してください。"
+
+            tmux send-keys -t "${TEAM_PANES[$team_num]}" "echo '$error_prompt' | claude '$image_path'" C-m
+            echo "🐛 エラー分析を開始: チーム$((team_num + 1)) → $image_path"
+        else
+            echo "❌ 無効なチーム番号: $team_num"
+        fi
+    }
+
+    # スクリーンショット自動撮影（macOS）
+    capture_and_analyze() {
+        local analysis_type="$1" # design, requirements, error
+        local team_num="$2"
+
+        echo "📸 スクリーンショットを撮影してください（3秒後開始）"
+        sleep 3
+
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        local screenshot_path="/tmp/claude_screenshot_${timestamp}.png"
+
+        # macOSでスクリーンショット撮影
+        screencapture -s "$screenshot_path"
+
+        if [ -f "$screenshot_path" ]; then
+            echo "✅ スクリーンショット保存: $screenshot_path"
+
+            case "$analysis_type" in
+            "design")
+                analyze_design "$screenshot_path" "スクリーンショット分析"
+                ;;
+            "requirements")
+                analyze_requirements "$screenshot_path" "スクリーンショット要件分析"
+                ;;
+            "error")
+                if [ -n "$team_num" ]; then
+                    analyze_error "$screenshot_path" "$team_num"
+                else
+                    echo "❌ エラー分析にはチーム番号が必要です"
+                fi
+                ;;
+            *)
+                echo "❌ 不明な分析タイプ: $analysis_type"
+                echo "利用可能: design, requirements, error"
+                ;;
+            esac
+        else
+            echo "❌ スクリーンショットの撮影に失敗しました"
+        fi
+    }
+
+    # QAテスト画面分析
+    qa_analyze_screen() {
+        local image_path="$1"
+        local test_type="$2" # ui, performance, accessibility
+
+        if [ -z "$image_path" ] || [ -z "$test_type" ]; then
+            echo "使用方法: qa-analyze-screen <画像パス> <テストタイプ>"
+            echo "テストタイプ: ui, performance, accessibility"
+            return 1
+        fi
+
+        local qa_prompt="この画面を${test_type}テストの観点から分析してください：
+
+【${test_type}テスト分析】"
+
+        case "$test_type" in
+        "ui")
+            qa_prompt="$qa_prompt
+1. レイアウトの妥当性
+2. ユーザビリティの問題
+3. デザインガイドライン準拠
+4. レスポンシブ対応"
+            ;;
+        "performance")
+            qa_prompt="$qa_prompt
+1. 表示速度の問題
+2. リソース使用量
+3. 最適化ポイント
+4. パフォーマンス改善提案"
+            ;;
+        "accessibility")
+            qa_prompt="$qa_prompt
+1. アクセシビリティ準拠
+2. 色彩対比の確認
+3. キーボード操作対応
+4. スクリーンリーダー対応"
+            ;;
+        esac
+
+        qa_prompt="$qa_prompt
+
+【出力】
+- 問題点の特定
+- 改善提案
+- テストケース追加
+- 品質基準への適合状況
+
+テスト結果をdocs/tests/に記録してください。"
+
+        tmux send-keys -t "$QA_PANE" "echo '$qa_prompt' | claude '$image_path'" C-m
+        echo "🔍 QA画面分析を開始: $test_type → $image_path"
+    }
+
+    # エイリアス追加
+    alias analyze-design='analyze_design'
+    alias analyze-requirements='analyze_requirements'
+    alias analyze-error='analyze_error'
+    alias capture-analyze='capture_and_analyze'
+    alias qa-analyze='qa_analyze_screen'
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         tmux attach-session -t "$SESSION_NAME"
         exit 0
