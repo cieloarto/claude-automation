@@ -3,7 +3,8 @@
     "allow": [
       "Bash(ls:*)",
       "WebFetch(domain:zenn.dev)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

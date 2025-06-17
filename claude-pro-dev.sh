@@ -8,6 +8,47 @@ TEAM_COUNT=${2:-4}
 WORKSPACE_DIR=${3:-"$(pwd)/projects"}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# tmuxのバッファオーバーフロー対策
+export TMUX_HISTORY_LIMIT=50000
+export TMUX_BUFFER_LIMIT=20
+
+# バッファクリア関数
+clear_tmux_buffers() {
+    echo "🧹 tmuxバッファをクリアしています..."
+    
+    # 全ペインのヒストリをクリア
+    local panes=$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_id}")
+    for pane in $panes; do
+        tmux clear-history -t "$pane"
+    done
+    
+    # バッファリストをクリア
+    tmux delete-buffer -b 0 2>/dev/null || true
+    
+    echo "✅ バッファクリア完了"
+}
+
+# 特定のペインのバッファをクリア
+clear_pane_buffer() {
+    local pane_id="$1"
+    if [ -z "$pane_id" ]; then
+        echo "使用方法: clear_pane_buffer <pane_id>"
+        return 1
+    fi
+    
+    tmux clear-history -t "$pane_id"
+    echo "✅ ペイン $pane_id のバッファをクリア"
+}
+
+# メモリ使用状況の確認
+check_tmux_memory() {
+    echo "📊 tmuxメモリ使用状況:"
+    ps aux | grep tmux | grep -v grep
+    echo ""
+    echo "📜 バッファ数:"
+    tmux list-buffers 2>/dev/null | wc -l || echo "0"
+}
+
 echo "🏢 Claude プロフェッショナル開発環境セットアップ開始..."
 echo "セッション名: $SESSION_NAME"
 echo "開発チーム数: $TEAM_COUNT"
@@ -424,14 +465,18 @@ done
 mkdir -p "$WORKSPACE_DIR"
 mkdir -p "$WORKSPACE_DIR/docs"/{requirements,design,tasks,tests,knowledge}
 
-# tmuxセッション作成と画面分割
-tmux new-session -d -s "$SESSION_NAME"
-tmux split-window -h -t "$SESSION_NAME"
+# tmuxセッション作成と画面分割（バッファオーバーフロー対策付き）
+tmux new-session -d -s "$SESSION_NAME" \
+    -c "$WORKSPACE_DIR" \
+    \; set-option -g history-limit $TMUX_HISTORY_LIMIT \
+    \; set-option -g buffer-limit 20
+# 各ペインにもバッファ制限を適用
+tmux split-window -h -t "$SESSION_NAME" \; set-option -p history-limit $TMUX_HISTORY_LIMIT
 tmux select-pane -t 0
-tmux split-window -v
+tmux split-window -v \; set-option -p history-limit $TMUX_HISTORY_LIMIT
 tmux select-pane -t 2
 for ((i = 1; i < TEAM_COUNT; i++)); do
-    tmux split-window -v
+    tmux split-window -v \; set-option -p history-limit $TMUX_HISTORY_LIMIT
 done
 
 # レイアウト調整
@@ -479,10 +524,20 @@ export SCRIPT_DIR="$SCRIPT_DIR"
 export DEVELOPMENT_PHASE="requirements"
 export CURRENT_PROJECT=""
 
+# バッファ管理関数をエクスポート
+export -f clear_tmux_buffers
+export -f clear_pane_buffer
+export -f check_tmux_memory
+
 # 共通関数読み込み
 source "$SCRIPT_DIR/claude-functions.sh"
 source "$SCRIPT_DIR/claude-qa.sh"  
 source "$SCRIPT_DIR/claude-workflow.sh"
+
+# エイリアス定義
+alias clear-buffers='clear_tmux_buffers'
+alias clear-pane='clear_pane_buffer'
+alias tmux-memory='check_tmux_memory'
 
 # チーム初期化
 init_all_teams
@@ -498,6 +553,11 @@ echo "  4. implementation"
 echo "  5. task-assign 0 'タスク内容' 'ブランチ名'"
 echo ""
 echo "💡 詳細は 'help' コマンドで確認してください"
+echo ""
+echo "🧹 バッファ管理コマンド:"
+echo "  - clear-buffers: 全ペインのバッファをクリア"
+echo "  - clear-pane <pane_id>: 特定ペインのバッファをクリア"
+echo "  - tmux-memory: メモリ使用状況を確認"
 echo ""
 EOF
 

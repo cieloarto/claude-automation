@@ -7,6 +7,55 @@ chr() {
     printf "\\$(printf '%03o' "$1")"
 }
 
+# バッファクリア関数
+clear_buffers() {
+    local target="${1:-all}"
+    
+    case "$target" in
+        "all")
+            echo "🧹 全ペインのバッファをクリア中..."
+            tmux list-panes -t "$SESSION_NAME" -F "#{pane_id}" | while read -r pane_id; do
+                tmux clear-history -t "$SESSION_NAME:$pane_id"
+            done
+            echo "✅ 全バッファクリア完了"
+            ;;
+        "manager")
+            tmux clear-history -t "$MANAGER_PANE"
+            echo "✅ マネージャーバッファクリア完了"
+            ;;
+        "qa")
+            tmux clear-history -t "$QA_PANE"
+            echo "✅ QAバッファクリア完了"
+            ;;
+        [0-9]*)
+            if [ "$target" -lt "${#TEAM_PANES[@]}" ]; then
+                tmux clear-history -t "${TEAM_PANES[$target]}"
+                echo "✅ チーム$(chr $((65 + target)))バッファクリア完了"
+            else
+                echo "❌ 無効なチーム番号: $target"
+            fi
+            ;;
+        *)
+            echo "使用方法: clear-buffers [all|manager|qa|<チーム番号>]"
+            ;;
+    esac
+}
+
+# バッファ使用状況確認
+check_buffer_usage() {
+    echo "📊 バッファ使用状況:"
+    tmux list-panes -t "$SESSION_NAME" -F "#{pane_title}: #{history_size}/#{history_limit}" | while read -r line; do
+        echo "  $line"
+    done
+}
+
+# tmux再描画
+refresh_display() {
+    echo "🔄 tmux表示を再描画中..."
+    tmux refresh-client -t "$SESSION_NAME"
+    echo "✅ 再描画完了"
+}
+
 # プロジェクトマネージャーを初期化
 init_manager() {
     local init_prompt="あなたはシニアプロジェクトマネージャーです。

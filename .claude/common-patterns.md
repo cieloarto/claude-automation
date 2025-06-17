@@ -1,5 +1,33 @@
 # Common Patterns
 
+## Tmux Display Fix Patterns
+
+### Terminal Size Mismatch Fix
+```bash
+# Force tmux to redraw
+tmux refresh-client -t "$session_name"
+
+# Resize panes to fit current terminal
+tmux resize-pane -t "$session_name" -x $(tput cols) -y $(tput lines)
+```
+
+### Character Encoding Fix
+```bash
+# Set proper UTF-8 encoding
+export LANG=ja_JP.UTF-8
+export LC_ALL=ja_JP.UTF-8
+tmux set-option -g status-utf8 on
+```
+
+### Pane Layout Reset
+```bash
+# Reset to default layout
+tmux select-layout -t "$session_name" tiled
+
+# Custom layout for claude-pro-dev
+tmux select-layout -t "$session_name" "5a7f,238x57,0,0{119x57,0,0[119x28,0,0,0,119x28,0,29,2],118x57,120,0[118x18,120,0,1,118x18,120,19,3,118x19,120,38,4]}"
+```
+
 ## Tmux Command Patterns
 
 ### Send Complex Commands
@@ -181,3 +209,4 @@ approve_pr() {
     local pr_number=$1
     gh pr review $pr_number --approve --body "自動QAチェック合格 ✅"
 }
+```
