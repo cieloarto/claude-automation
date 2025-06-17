@@ -1,0 +1,24 @@
+Claude チーム開発環境 - ヘルプ
+
+【基本操作】
+- ペイン切り替え: Ctrl+b → 矢印キー
+- ペイン拡大: Ctrl+b → z
+- セッション終了: exit (全ペインで実行)
+
+【QA/開発ペインでClaude起動】
+claude
+
+【マネージャーペインでのコマンド例】
+# QAペインにコマンド送信
+tmux send-keys -t claude-team:0.1 "要件を確認してください" C-m
+
+# 開発ペインにコマンド送信  
+tmux send-keys -t claude-team:0.2 "実装を開始してください" C-m
+
+# 全ペインの履歴クリア
+tmux clear-history -t claude-team
+
+【作業フロー例】
+1. QA/開発ペインでclaudeを起動
+2. マネージャーペインから指示を送信
+3. 各ペインで作業を実行

@@ -5,7 +5,8 @@
       "WebFetch(domain:zenn.dev)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(tmux list-sessions:*)"
     ],
     "deny": []
   }

@@ -150,6 +150,7 @@ echo "2. マネージャーペイン（左上）でコマンドを実行"
 echo "3. help コマンドで利用可能な機能を確認"
 echo ""
 echo "🎯 セッションにアタッチします..."
+sleep 1
 
 # アタッチ
 tmux attach-session -t "$SESSION_NAME"
