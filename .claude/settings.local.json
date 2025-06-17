@@ -7,7 +7,8 @@
       "Bash(grep:*)",
       "Bash(chmod:*)",
       "Bash(tmux list-sessions:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

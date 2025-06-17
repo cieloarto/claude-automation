@@ -75,8 +75,26 @@ tmux split-window -v -t "$SESSION_NAME:0.1" -c "$WORK_DIR"
 
 # コマンドスクリプト作成
 cat > "$WORK_DIR/.commands.sh" << 'EOF'
-# ヘルプコマンド
-alias help='cat ~/team-workspace/help.txt'
+# ヘルプ関数
+help() {
+    echo "Claude チーム開発環境"
+    echo ""
+    echo "【ペイン操作】"
+    echo "  Ctrl+b → 矢印  : ペイン移動"
+    echo "  Ctrl+b → z     : ペイン拡大/縮小"
+    echo ""
+    echo "【便利なコマンド】"
+    echo "  help      : このヘルプを表示"
+    echo "  qa        : QAペインでclaudeを起動"
+    echo "  dev       : 開発ペインでclaudeを起動"
+    echo "  clear-all : 全ペインをクリア"
+    echo "  exit-team : セッションを終了"
+    echo ""
+    echo "【メッセージ送信】"
+    echo "  qa-msg \"テストしてください\""
+    echo "  dev-msg \"実装してください\""
+}
+EOF
 
 # QAペインでClaude起動
 alias qa='tmux send-keys -t claude-team:0.1 "claude" C-m'
@@ -124,25 +142,7 @@ exit-team() {
 echo "利用可能: help, qa, dev, clear-all, qa-msg, dev-msg, exit-team"
 EOF
 
-# ヘルプ作成
-cat > "$WORK_DIR/help.txt" << 'EOF'
-Claude チーム開発環境
-
-【ペイン操作】
-  Ctrl+b → 矢印  : ペイン移動
-  Ctrl+b → z     : ペイン拡大/縮小
-
-【便利なコマンド】
-  help      : このヘルプを表示
-  qa        : QAペインでclaudeを起動
-  dev       : 開発ペインでclaudeを起動
-  clear-all : 全ペインをクリア
-  exit-team : セッションを終了
-
-【メッセージ送信】
-  qa-msg "テストしてください"
-  dev-msg "実装してください"
-EOF
+# ヘルプファイルは不要（関数内に埋め込んだため）
 
 # 各ペインでセットアップ
 tmux send-keys -t "$SESSION_NAME:0.0" "source .setup.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
