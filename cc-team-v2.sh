@@ -49,6 +49,7 @@ tmux split-window -v -t "$SESSION_NAME:0.1" -c "$WORK_DIR"
 # 各ペインでバナー表示とプロンプト設定
 # マネージャー: シアン
 tmux send-keys -t "$SESSION_NAME:0.0" "export PS1='\\[\\033[1;36m\\]M>\\[\\033[0m\\] '" C-m
+tmux send-keys -t "$SESSION_NAME:0.0" "source $WORK_DIR/.commands.sh" C-m
 tmux send-keys -t "$SESSION_NAME:0.0" "clear && cat banner-manager.txt" C-m
 
 # QA: 黄色
@@ -70,6 +71,39 @@ Claude チーム開発環境
 【コマンド送信】
   tmux send-keys -t claude-team:0.1 "メッセージ" C-m
   tmux send-keys -t claude-team:0.2 "メッセージ" C-m
+
+【便利なコマンド】
+  help     : このヘルプを表示
+  qa       : QAペインでclaudeを起動
+  dev      : 開発ペインでclaudeを起動
+  clear-all: 全ペインをクリア
+EOF
+
+# コマンドスクリプト作成
+cat > "$WORK_DIR/.commands.sh" << 'EOF'
+# ヘルプコマンド
+alias help='cat ~/team-workspace/help.txt'
+
+# QAペインでClaude起動
+alias qa='tmux send-keys -t claude-team:0.1 "claude" C-m'
+
+# 開発ペインでClaude起動
+alias dev='tmux send-keys -t claude-team:0.2 "claude" C-m'
+
+# 全ペインクリア
+alias clear-all='tmux send-keys -t claude-team:0.0 "clear" C-m; tmux send-keys -t claude-team:0.1 "clear" C-m; tmux send-keys -t claude-team:0.2 "clear" C-m'
+
+# QAにメッセージ送信
+qa-msg() {
+    tmux send-keys -t claude-team:0.1 "$*" C-m
+}
+
+# 開発にメッセージ送信
+dev-msg() {
+    tmux send-keys -t claude-team:0.2 "$*" C-m
+}
+
+echo "コマンド: help, qa, dev, clear-all, qa-msg, dev-msg"
 EOF
 
 echo "✅ 準備完了！"
