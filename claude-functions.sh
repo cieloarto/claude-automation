@@ -58,7 +58,9 @@ refresh_display() {
 
 # プロジェクトマネージャーを初期化
 init_manager() {
-    local init_prompt="あなたはシニアプロジェクトマネージャーです。
+    # プロンプトをファイルに書き出してから送信
+    cat > /tmp/manager_init_prompt.txt << 'MANAGEREOF'
+あなたはシニアプロジェクトマネージャーです。
 
 【作業ディレクトリ】
 $WORKSPACE_DIR
@@ -67,11 +69,11 @@ $WORKSPACE_DIR
 cd '$WORKSPACE_DIR' && 
 
 【開発フェーズ】
-1. 要件定義フェーズ (requirements)
-2. 設計フェーズ (design) 
-3. 実装フェーズ (implementation)
-4. 全体テストフェーズ (integration-testing)
-5. リリースフェーズ (release)
+- 要件定義フェーズ (requirements)
+- 設計フェーズ (design) 
+- 実装フェーズ (implementation)
+- 全体テストフェーズ (integration-testing)
+- リリースフェーズ (release)
 
 【ドキュメント管理】
 - 要件定義: docs/requirements/requirements.md
@@ -81,28 +83,43 @@ cd '$WORKSPACE_DIR' &&
 - ナレッジ: docs/knowledge/claude.md (指示ファイル)
 
 【チーム構成】
-$(for i in ${!TEAM_PANES[@]}; do echo "- チーム$(chr $((65 + i))): 開発担当"; done)
+MANAGEREOF
+
+    # チーム構成を動的に追加
+    for i in ${!TEAM_PANES[@]}; do
+        echo "- チーム$(chr $((65 + i))): 開発担当" >> /tmp/manager_init_prompt.txt
+    done
+    
+    # 残りの部分を追加
+    cat >> /tmp/manager_init_prompt.txt << 'MANAGEREOF2'
 - QA & テストチーム: 品質ゲート・PR管理・全体テスト
 
 【改良されたワークフロー】
-1. 開発チーム実装完了 → QAに品質チェック依頼
-2. QA品質チェック → 合格なら自動PR作成 / 不合格なら差し戻し
-3. PR作成後 → QAが自動レビュー承認
-4. 全体テスト → develop branchの統合品質確認
+- 開発チーム実装完了 → QAに品質チェック依頼
+- QA品質チェック → 合格なら自動PR作成 / 不合格なら差し戻し
+- PR作成後 → QAが自動レビュー承認
+- 全体テスト → develop branchの統合品質確認
 
 【報告形式】
 '[MANAGER] ○○フェーズを開始' の形式で報告してください。
 
-初期化完了です。プロジェクトの要件をお待ちしています。"
+初期化完了です。プロジェクトの要件をお待ちしています。
+MANAGEREOF2
 
-    tmux send-keys -t "$MANAGER_PANE" "$init_prompt" C-m
+    # ファイルから読み込んで送信
+    tmux send-keys -t "$MANAGER_PANE" "cat /tmp/manager_init_prompt.txt" C-m
+    sleep 0.5
+    rm -f /tmp/manager_init_prompt.txt
 }
 
 # 開発チームを初期化
 init_teams() {
     for i in ${!TEAM_PANES[@]}; do
         local team_letter=$(chr $((65 + i)))
-        local team_prompt="あなたはチーム${team_letter}のシニア開発者です。
+        
+        # プロンプトをファイルに書き出してから送信
+        cat > "/tmp/team_${i}_init_prompt.txt" << TEAMEOF
+あなたはチーム${team_letter}のシニア開発者です。
 
 【役割】
 - 要件に基づく高品質な実装
@@ -110,16 +127,16 @@ init_teams() {
 - Git ワークフロー管理
 
 【改良されたワークフロー】
-1. 実装完了後、必ずQAチームに品質チェック依頼
-2. QAチェック不合格時は修正対応
-3. QAチェック合格後、自動でPR作成される
+- 実装完了後、必ずQAチームに品質チェック依頼
+- QAチェック不合格時は修正対応
+- QAチェック合格後、自動でPR作成される
 
 【Git ワークフロー】
-1. feature/<task-name> ブランチ作成
-2. git worktree でブランチ分離
-3. 実装 + 単体テスト作成
-4. テスト実行確認 (npm test / yarn test)
-5. QAチームに品質チェック依頼
+- feature/<task-name> ブランチ作成
+- git worktree でブランチ分離
+- 実装 + 単体テスト作成
+- テスト実行確認 (npm test / yarn test)
+- QAチームに品質チェック依頼
 
 【品質基準】
 - 単体テストカバレッジ 80%以上
@@ -133,9 +150,13 @@ init_teams() {
 - 修正対応: '[チーム${team_letter}] QA指摘事項修正完了、再チェック依頼'
 - 質問・相談: '[チーム${team_letter}] 技術相談: ○○について'
 
-チーム${team_letter}準備完了です。"
+チーム${team_letter}準備完了です。
+TEAMEOF
 
-        tmux send-keys -t "${TEAM_PANES[$i]}" "$team_prompt" C-m
+        # ファイルから読み込んで送信
+        tmux send-keys -t "${TEAM_PANES[$i]}" "cat /tmp/team_${i}_init_prompt.txt" C-m
+        sleep 0.5
+        rm -f "/tmp/team_${i}_init_prompt.txt"
     done
 }
 
