@@ -466,10 +466,9 @@ mkdir -p "$WORKSPACE_DIR"
 mkdir -p "$WORKSPACE_DIR/docs"/{requirements,design,tasks,tests,knowledge}
 
 # tmuxセッション作成と画面分割（バッファオーバーフロー対策付き）
-tmux new-session -d -s "$SESSION_NAME" \
-    -c "$WORKSPACE_DIR" \
-    \; set-option -g history-limit $TMUX_HISTORY_LIMIT \
-    \; set-option -g buffer-limit 20
+tmux new-session -d -s "$SESSION_NAME" -c "$WORKSPACE_DIR"
+tmux set-option -t "$SESSION_NAME" -g history-limit $TMUX_HISTORY_LIMIT
+tmux set-option -t "$SESSION_NAME" -g buffer-limit 20
 # 各ペインにもバッファ制限を適用
 tmux split-window -h -t "$SESSION_NAME" \; set-option -p history-limit $TMUX_HISTORY_LIMIT
 tmux select-pane -t 0
@@ -511,39 +510,61 @@ for pane in "$QA_PANE" "${TEAM_PANES[@]}"; do
 done
 wait
 
-# 統合スクリプト作成
-cat <<EOF >/tmp/claude_pro_dev_integrated.sh
-#!/bin/bash
-
-# 環境変数設定
+# 環境変数を.envファイルに保存
+cat > "$WORKSPACE_DIR/.env" << ENVEOF
 export MANAGER_PANE="$MANAGER_PANE"
 export QA_PANE="$QA_PANE"
 export TEAM_PANES=(${TEAM_PANES[*]})
 export WORKSPACE_DIR="$WORKSPACE_DIR"
 export SCRIPT_DIR="$SCRIPT_DIR"
+export SESSION_NAME="$SESSION_NAME"
 export DEVELOPMENT_PHASE="requirements"
 export CURRENT_PROJECT=""
+ENVEOF
 
-# バッファ管理関数をエクスポート
-export -f clear_tmux_buffers
-export -f clear_pane_buffer
-export -f check_tmux_memory
+# bashrcに追記する内容を作成
+cat > /tmp/claude_pro_dev_rc.sh << 'RCEOF'
+# Claude Pro Dev環境設定
+if [ -f "$WORKSPACE_DIR/.env" ]; then
+    source "$WORKSPACE_DIR/.env"
+fi
 
-# 共通関数読み込み
-source "$SCRIPT_DIR/claude-functions.sh"
-source "$SCRIPT_DIR/claude-qa.sh"  
-source "$SCRIPT_DIR/claude-workflow.sh"
+# スクリプトディレクトリから関数を読み込み
+if [ -n "$SCRIPT_DIR" ]; then
+    source "$SCRIPT_DIR/claude-functions.sh"
+    source "$SCRIPT_DIR/claude-qa.sh"
+    source "$SCRIPT_DIR/claude-workflow.sh"
+fi
 
 # エイリアス定義
-alias clear-buffers='clear_tmux_buffers'
-alias clear-pane='clear_pane_buffer'
-alias tmux-memory='check_tmux_memory'
+alias help='show_help'
+alias clear-buffers='clear_buffers'
+alias buffer-status='check_buffer_usage'
+alias refresh='refresh_display'
+RCEOF
 
-# チーム初期化をバックグラウンドで実行（Claude Code起動後）
-(
-    sleep 5  # Claude Codeの起動を待つ
-    init_all_teams
-) &
+# 初期化遅延実行のためのスクリプト作成
+cat > /tmp/init_teams.sh << 'INITEOF'
+#!/bin/bash
+sleep 5  # Claude Codeの起動を待つ
+
+# 環境変数読み込み
+source "$WORKSPACE_DIR/.env"
+source "$SCRIPT_DIR/claude-functions.sh"
+source "$SCRIPT_DIR/claude-qa.sh"
+
+# QAチーム初期化
+init_qa_team
+
+# 開発チーム初期化
+sleep 1
+init_teams
+INITEOF
+
+chmod +x /tmp/init_teams.sh
+
+# バックグラウンドで初期化実行
+bash /tmp/init_teams.sh &
 
 echo ""
 echo "🎉 Claude プロフェッショナル開発環境セットアップ完了！"
@@ -562,12 +583,11 @@ echo "  - clear-buffers: 全ペインのバッファをクリア"
 echo "  - clear-pane <pane_id>: 特定ペインのバッファをクリア"
 echo "  - tmux-memory: メモリ使用状況を確認"
 echo ""
-EOF
-
-chmod +x /tmp/claude_pro_dev_integrated.sh
-
-# マネージャーペインで統合スクリプトを実行
-tmux send-keys -t "$MANAGER_PANE" "source /tmp/claude_pro_dev_integrated.sh" C-m
+# マネージャーペインでbashrcを読み込み
+tmux send-keys -t "$MANAGER_PANE" "source $WORKSPACE_DIR/.env" C-m
+tmux send-keys -t "$MANAGER_PANE" "source $SCRIPT_DIR/claude-functions.sh" C-m
+tmux send-keys -t "$MANAGER_PANE" "source $SCRIPT_DIR/claude-qa.sh" C-m
+tmux send-keys -t "$MANAGER_PANE" "source $SCRIPT_DIR/claude-workflow.sh" C-m
 sleep 1
 
 # 初期プロンプトを表示

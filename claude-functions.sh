@@ -59,7 +59,7 @@ refresh_display() {
 # プロジェクトマネージャーを初期化
 init_manager() {
     # プロンプトをファイルに書き出してから送信
-    cat > /tmp/manager_init_prompt.txt << 'MANAGEREOF'
+    cat > /tmp/manager_init_prompt.txt << MANAGEREOF
 あなたはシニアプロジェクトマネージャーです。
 
 【作業ディレクトリ】
