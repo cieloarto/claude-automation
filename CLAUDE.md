@@ -6,6 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is the claude-automation project - a sophisticated multi-agent development workflow automation framework that orchestrates Claude Code instances to simulate a complete development team with project managers, developers, and QA engineers.
 
+## Knowledge Management Structure
+
+This project uses a structured knowledge management system to maintain context and insights:
+
+- **CLAUDE.md** (this file): Main configuration and command reference
+- **.claude/context.md**: Project background, constraints, and technology choices
+- **.claude/project-knowledge.md**: Technical insights and implementation patterns
+- **.claude/project-improvements.md**: Improvement history and lessons learned
+- **.claude/common-patterns.md**: Frequently used command and code patterns
+- **.claude/debug-log.md**: Important debugging records and solutions
+- **.claude/debug/**: Directory for session logs and temporary debug files
+
 ## Commands
 
 ### Setting Up and Running
