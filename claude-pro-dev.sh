@@ -503,9 +503,9 @@ echo "👔 プロジェクトマネージャー: $MANAGER_PANE"
 echo "🔍 QA & テストチーム: $QA_PANE"
 echo "👨‍💻 開発チーム: ${TEAM_PANES[*]}"
 
-# Claude Code起動
+# Claude Code起動（マネージャー以外）
 echo "🚀 各チームでClaude Code起動中..."
-for pane in "$MANAGER_PANE" "$QA_PANE" "${TEAM_PANES[@]}"; do
+for pane in "$QA_PANE" "${TEAM_PANES[@]}"; do
     tmux send-keys -t "$pane" "claude --dangerously-skip-permissions" C-m &
     sleep 0.3
 done
@@ -539,8 +539,11 @@ alias clear-buffers='clear_tmux_buffers'
 alias clear-pane='clear_pane_buffer'
 alias tmux-memory='check_tmux_memory'
 
-# チーム初期化
-init_all_teams
+# チーム初期化をバックグラウンドで実行（Claude Code起動後）
+(
+    sleep 5  # Claude Codeの起動を待つ
+    init_all_teams
+) &
 
 echo ""
 echo "🎉 Claude プロフェッショナル開発環境セットアップ完了！"
@@ -563,8 +566,16 @@ EOF
 
 chmod +x /tmp/claude_pro_dev_integrated.sh
 
-# 統合スクリプトを実行
+# マネージャーペインで統合スクリプトを実行
 tmux send-keys -t "$MANAGER_PANE" "source /tmp/claude_pro_dev_integrated.sh" C-m
+sleep 1
+
+# 初期プロンプトを表示
+tmux send-keys -t "$MANAGER_PANE" "echo ''" C-m
+tmux send-keys -t "$MANAGER_PANE" "echo '🎯 Claude Development Manager Ready!'" C-m
+tmux send-keys -t "$MANAGER_PANE" "echo 'コマンドを入力してください (help でヘルプ表示)'" C-m
+tmux send-keys -t "$MANAGER_PANE" "echo ''" C-m
+
 tmux select-pane -t 0
 
 echo "🎯 セッションにアタッチします..."
