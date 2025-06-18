@@ -113,10 +113,12 @@ help() {
     echo "  import-knowledge '<URL>' '<説明>' - 外部知識をインポート"
     echo ""
     echo "【その他】"
-    echo "  status       - プロジェクト状況確認"
-    echo "  progress     - 進捗確認"
-    echo "  clear-all    - 全ペインクリア"
-    echo "  exit-project - プロジェクト終了"
+    echo "  status          - プロジェクト状況確認"
+    echo "  progress        - 進捗確認（ファイル報告）"
+    echo "  check-progress  - 報告状況を確認"
+    echo "  summary-progress - 進捗サマリー生成"
+    echo "  clear-all       - 全ペインクリア"
+    echo "  exit-project    - プロジェクト終了"
 }
 
 # 要件定義フェーズ
@@ -220,13 +222,20 @@ status() {
     echo "  開発チーム数: ${#TEAM_PANES[@]}"
 }
 
-# 進捗確認
+# 進捗確認（ファイル経由で報告を収集）
 progress() {
     echo "[MANAGER] 全チーム進捗確認"
-    echo "→ QAチームと各開発チームに進捗確認を送信しました"
+    
+    # 進捗報告用ディレクトリを作成
+    local report_dir="\$WORKSPACE_DIR/reports/progress"
+    mkdir -p "\$report_dir"
+    rm -f "\$report_dir"/*.txt 2>/dev/null
+    
+    # タイムスタンプ
+    local timestamp=\$(date +"%Y%m%d_%H%M%S")
     
     # QAペインに送信
-    send_to_claude "$QA_PANE" "現在の進捗状況を報告してください。"
+    send_to_claude "$QA_PANE" "現在の進捗状況を報告してください。報告が完了したら、内容を \$report_dir/qa_\$timestamp.txt に保存してください。"
     
     # 各開発チームに送信
     local num_teams=\$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_id}" | wc -l)
@@ -236,9 +245,111 @@ progress() {
         local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
         local pane_id="\${TEAM_PANES[\$i]}"
         if [ -n "\$pane_id" ]; then
-            send_to_claude "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。"
+            send_to_claude "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。報告が完了したら、内容を \$report_dir/team\${team_letter}_\$timestamp.txt に保存してください。"
         fi
     done
+    
+    echo "→ 進捗確認を送信しました"
+    echo "→ 報告は \$report_dir に保存されます"
+    echo ""
+    echo "💡 ヒント: check-progress で報告状況を確認できます"
+}
+
+# 進捗報告の確認
+check-progress() {
+    local report_dir="\$WORKSPACE_DIR/reports/progress"
+    
+    if [ ! -d "\$report_dir" ]; then
+        echo "❌ 進捗報告がまだありません"
+        return 1
+    fi
+    
+    echo "📊 進捗報告の状況:"
+    echo ""
+    
+    # QAチームの報告確認
+    if ls "\$report_dir"/qa_*.txt 1> /dev/null 2>&1; then
+        echo "✅ QAチーム: 報告済み"
+    else
+        echo "⏳ QAチーム: 報告待ち"
+    fi
+    
+    # 各開発チームの報告確認
+    for letter in A B C D; do
+        if ls "\$report_dir"/team\${letter}_*.txt 1> /dev/null 2>&1; then
+            echo "✅ チーム\$letter: 報告済み"
+        else
+            echo "⏳ チーム\$letter: 報告待ち"
+        fi
+    done
+    
+    echo ""
+    
+    # 全員の報告が揃ったか確認
+    local total_files=\$(ls "\$report_dir"/*.txt 2>/dev/null | wc -l)
+    local expected_files=\$((1 + \${#TEAM_PANES[@]}))  # QA + 開発チーム数
+    
+    if [ "\$total_files" -ge "\$expected_files" ]; then
+        echo "🎉 全チームの報告が揃いました！"
+        echo ""
+        echo "使用可能なコマンド:"
+        echo "  summary-progress - 進捗サマリーを生成"
+    fi
+}
+
+# 進捗サマリーの生成
+summary-progress() {
+    local report_dir="\$WORKSPACE_DIR/reports/progress"
+    
+    if [ ! -d "\$report_dir" ]; then
+        echo "❌ 進捗報告がありません"
+        return 1
+    fi
+    
+    echo "📋 進捗サマリー"
+    echo "=================="
+    echo ""
+    
+    # QAチームの報告
+    if ls "\$report_dir"/qa_*.txt 1> /dev/null 2>&1; then
+        echo "【QAチーム】"
+        cat "\$report_dir"/qa_*.txt | head -n 10
+        echo ""
+    fi
+    
+    # 各開発チームの報告
+    for letter in A B C D; do
+        if ls "\$report_dir"/team\${letter}_*.txt 1> /dev/null 2>&1; then
+            echo "【チーム\$letter】"
+            cat "\$report_dir"/team\${letter}_*.txt | head -n 10
+            echo ""
+        fi
+    done
+    
+    # サマリーファイルに保存
+    local summary_file="\$WORKSPACE_DIR/reports/progress_summary_\$(date +%Y%m%d_%H%M%S).md"
+    {
+        echo "# 進捗報告サマリー"
+        echo "日時: \$(date)"
+        echo ""
+        
+        if ls "\$report_dir"/qa_*.txt 1> /dev/null 2>&1; then
+            echo "## QAチーム"
+            cat "\$report_dir"/qa_*.txt
+            echo ""
+        fi
+        
+        for letter in A B C D; do
+            if ls "\$report_dir"/team\${letter}_*.txt 1> /dev/null 2>&1; then
+                echo "## チーム\$letter"
+                cat "\$report_dir"/team\${letter}_*.txt
+                echo ""
+            fi
+        done
+    } > "\$summary_file"
+    
+    echo ""
+    echo "✅ サマリーを保存しました: \$summary_file"
 }
 
 # 全ペインクリア
