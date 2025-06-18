@@ -162,8 +162,7 @@ assign-task-to-team() {
         TEAM_CURRENT_TASK[$team]="$task"
         
         echo "📌 チーム$team に割り当て: $task"
-        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: 次のタスクを実装してください: $task" C-m
-        tmux send-keys -t "claude-pro-dev:0.$pane" "完了したら、マネージャーペインで 'team-done $team' を実行してください。" C-m
+        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: $task を実装してください。完了後'team-done $team'実行。" C-m
         
         ((TASK_INDEX++))
     else
@@ -185,7 +184,7 @@ team-done() {
     
     # QAチームにテスト依頼
     echo "🔍 QAチームにテスト確認を依頼"
-    tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』を完了しました。テストとコードレビューをお願いします。合格したら 'qa-approve $team' を実行してください。" C-m
+    tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』完了。テスト・レビュー後'qa-approve $team'実行してください。" C-m
     
     # チームを一時的にQA待ち状態に
     TEAM_STATUS[$team]="qa_review"
@@ -245,12 +244,7 @@ qa-approve() {
     local pane_map=(["A"]=2 ["B"]=3 ["C"]=4 ["D"]=5)
     local pane="${pane_map[$team]}"
     
-    tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成してください:
-1. git add .
-2. git commit -m 'feat: $current_task'
-3. git push origin feature/team$team-task
-4. gh pr create --title '$current_task' --body 'チーム$team による実装'
-完了したら 'pr-created $team' を実行してください。" C-m
+    tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成手順: 1.git add . 2.git commit -m 'feat: $current_task' 3.git push 4.gh pr create 完了後'pr-created $team'実行" C-m
     
     # チームをPR作成待ち状態に
     TEAM_STATUS[$team]="pr_creation"
@@ -341,7 +335,7 @@ start-monitor() {
                 fi
                 
                 # アイドル状態の検知（プロンプトが表示されている）
-                if [[ "$last_line" =~ (T$team>|>|$) ]] && [ "${TEAM_STATUS[$team]}" = "working" ]; then
+                if [[ "$last_line" =~ (T$team\>|\>) ]] && [ "${TEAM_STATUS[$team]}" = "working" ]; then
                     # 30秒間同じ状態なら完了とみなす
                     sleep 30
                     local current_line=$(tmux capture-pane -t "claude-pro-dev:0.$pane" -p | tail -1)
