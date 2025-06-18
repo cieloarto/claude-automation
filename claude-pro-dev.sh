@@ -222,7 +222,7 @@ team-done() {
     
     # QAチームにテスト依頼
     echo "🔍 QAチームにテスト確認を依頼"
-    tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』完了。テスト・レビュー後'qa-approve $team'実行してください。" C-m
+    tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』完了。テスト・レビュー後'qa-approve $team \"$completed_task\"'実行してください。" C-m
     sleep 1
     tmux send-keys -t "claude-pro-dev:0.1" C-m
     
@@ -272,12 +272,21 @@ assign-next() {
 # QA承認とPR作成フロー
 qa-approve() {
     local team="$1"
+    local task_name="$2"
+    
     if [ -z "$team" ]; then
-        echo "使用方法: qa-approve <チーム名(A/B/C/D)>"
+        echo "使用方法: qa-approve <チーム名(A/B/C/D)> [タスク名]"
         return 1
     fi
     
-    local current_task="${TEAM_CURRENT_TASK[$team]}"
+    # タスク名が引数で渡されていない場合は、配列から取得を試みる
+    local current_task
+    if [ -n "$task_name" ]; then
+        current_task="$task_name"
+    else
+        current_task="${TEAM_CURRENT_TASK[$team]}"
+    fi
+    
     echo "✅ QA承認: チーム$team の『$current_task』"
     
     # PR作成指示
@@ -285,6 +294,8 @@ qa-approve() {
     local pane="${pane_map[$team]}"
     
     tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成手順: 1.git add . 2.git commit -m 'feat: $current_task' 3.git push 4.gh pr create 完了後'pr-created $team'実行" C-m
+    sleep 1
+    tmux send-keys -t "claude-pro-dev:0.$pane" C-m
     
     # チームをPR作成待ち状態に
     TEAM_STATUS[$team]="pr_creation"
