@@ -96,9 +96,6 @@ export DEVELOPMENT_PHASE="requirements"
 help() {
     echo "📚 Claude Pro Dev - 利用可能なコマンド"
     echo ""
-    echo "【初期設定】"
-    echo "  start-claude - 全ペインでClaudeを起動（最初に実行）"
-    echo ""
     echo "【開発フェーズ】"
     echo "  requirements '<説明>'     - 要件定義フェーズ開始"
     echo "  design                   - 設計フェーズ開始"
@@ -130,8 +127,8 @@ requirements() {
     export DEVELOPMENT_PHASE="requirements"
     echo "[MANAGER] 要件定義フェーズを開始: \$project_desc"
     
-    # QAペインでClaudeに指示を送信（1つのメッセージとして）
-    tmux send-keys -t "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。以下の形式でdocs/requirements/requirements.mdに保存してください：1. プロジェクト概要、2. 機能要件、3. 非機能要件、4. 制約事項" C-m
+    # QAペインでClaudeに指示を送信
+    send_to_claude "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。以下の形式でdocs/requirements/requirements.mdに保存してください：1. プロジェクト概要、2. 機能要件、3. 非機能要件、4. 制約事項"
 }
 
 # 設計フェーズ
@@ -139,8 +136,8 @@ design() {
     export DEVELOPMENT_PHASE="design"
     echo "[MANAGER] 設計フェーズを開始"
     
-    # QAペインでClaudeに指示を送信（1つのメッセージとして）
-    tmux send-keys -t "$QA_PANE" "要件定義書を基に、以下の設計書を作成してください：1. docs/design/architecture.md - システムアーキテクチャ設計、2. docs/design/database.md - データベース設計（必要な場合）、3. docs/tasks/task-breakdown.md - タスク分解" C-m
+    # QAペインでClaudeに指示を送信
+    send_to_claude "$QA_PANE" "要件定義書を基に、以下の設計書を作成してください：1. docs/design/architecture.md - システムアーキテクチャ設計、2. docs/design/database.md - データベース設計（必要な場合）、3. docs/tasks/task-breakdown.md - タスク分解"
 }
 
 # 実装フェーズ
@@ -151,7 +148,7 @@ implementation() {
     # 各開発チームに通知
     for i in \${!TEAM_PANES[@]}; do
         local team_letter=\$(printf "\x\$(printf %x \$((65 + i)))")
-        tmux send-keys -t "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 実装フェーズ開始。タスク割り当てを待機してください。" C-m
+        send_to_claude "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 実装フェーズ開始。タスク割り当てを待機してください。"
     done
 }
 
@@ -175,9 +172,7 @@ task-assign() {
     echo "[MANAGER] チーム\$team_letter にタスク割り当て: \$task_desc"
     
     # 開発チームに指示を送信
-    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "タスク: \$task_desc" C-m
-    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "ブランチ: feature/\$branch_name で作業してください。" C-m
-    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "git checkout -b feature/\$branch_name を実行して開始してください。" C-m
+    send_to_claude "\${TEAM_PANES[\$team_num]}" "タスク: \$task_desc\nブランチ: feature/\$branch_name で作業してください。\ngit checkout -b feature/\$branch_name を実行して開始してください。"
 }
 
 # QAチェック依頼
@@ -193,8 +188,7 @@ qa-check() {
     echo "[MANAGER] QAチェック依頼: チーム\$team_letter - \$branch_name"
     
     # QAチームに指示を送信
-    tmux send-keys -t "$QA_PANE" "QAチェック依頼: チーム\$team_letter のブランチ feature/\$branch_name をテストしてください。" C-m
-    tmux send-keys -t "$QA_PANE" "品質チェックを実施し、結果をdocs/tests/に記録してください。" C-m
+    send_to_claude "$QA_PANE" "QAチェック依頼: チーム\$team_letter のブランチ feature/\$branch_name をテストしてください。\n品質チェックを実施し、結果をdocs/tests/に記録してください。"
 }
 
 # ナレッジインポート
@@ -211,9 +205,7 @@ import-knowledge() {
     echo "URL: \$url"
     
     # QAチームに指示を送信
-    tmux send-keys -t "$QA_PANE" "ナレッジインポート: \$desc" C-m
-    tmux send-keys -t "$QA_PANE" "URL: \$url の内容を分析して、プロジェクトに関連する重要な情報を抽出してください。" C-m
-    tmux send-keys -t "$QA_PANE" "分析結果をdocs/knowledge/に保存してください。" C-m
+    send_to_claude "$QA_PANE" "ナレッジインポート: \$desc\nURL: \$url の内容を分析して、プロジェクトに関連する重要な情報を抽出してください。\n分析結果をdocs/knowledge/に保存してください。"
 }
 
 # ステータス確認
@@ -230,8 +222,8 @@ progress() {
     echo "[MANAGER] 全チーム進捗確認"
     echo "→ QAチームと各開発チームに進捗確認を送信しました"
     
-    # QAペインに送信（Claudeが起動していることを前提）
-    tmux send-keys -t "$QA_PANE" "現在の進捗状況を報告してください。" C-m
+    # QAペインに送信
+    send_to_claude "$QA_PANE" "現在の進捗状況を報告してください。"
     
     # 各開発チームに送信
     local num_teams=\$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_id}" | wc -l)
@@ -241,7 +233,7 @@ progress() {
         local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
         local pane_id="\${TEAM_PANES[\$i]}"
         if [ -n "\$pane_id" ]; then
-            tmux send-keys -t "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。" C-m
+            send_to_claude "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。"
         fi
     done
 }
@@ -276,24 +268,13 @@ exit-project() {
 alias st='status'
 alias pg='progress'
 
-# Claude起動補助（すでに起動している場合のチェック付き）
-start-claude() {
-    echo "🚀 全ペインでClaudeを起動します..."
+# Claude実行関数（バックグラウンドで実行）
+send_to_claude() {
+    local pane_id="\$1"
+    local message="\$2"
     
-    # QAペイン
-    tmux send-keys -t "$QA_PANE" "" C-m
-    sleep 0.2
-    tmux send-keys -t "$QA_PANE" "claude" C-m
-    
-    # 開発チーム
-    for pane in \${TEAM_PANES[@]}; do
-        tmux send-keys -t "\$pane" "" C-m
-        sleep 0.2
-        tmux send-keys -t "\$pane" "claude" C-m
-    done
-    
-    echo "✅ 起動コマンドを送信しました"
-    echo "※ すでに起動している場合は無視してください"
+    # メッセージをClaudeに送信（パイプ使用）
+    tmux send-keys -t "\$pane_id" "echo '\$message' | claude" C-m
 }
 
 echo "🎯 Claude Pro Dev 準備完了！"
@@ -353,12 +334,12 @@ sleep 3
 echo ""
 echo "🎉 セットアップ完了！"
 echo ""
-echo "📋 開始手順:"
-echo "1. マネージャーペインで 'start-claude' を実行"
-echo "2. 各ペインでClaudeが起動したら、以下のコマンドが使用可能:"
+echo "📋 使用可能なコマンド:"
 echo "   - requirements '<プロジェクト説明>'"
 echo "   - design"
 echo "   - implementation"
+echo ""
+echo "※ Claudeへの指示は自動的にバックグラウンドで実行されます"
 echo ""
 echo "アタッチ中..."
 sleep 1
