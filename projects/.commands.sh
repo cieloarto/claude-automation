@@ -393,19 +393,12 @@ start-claude() {
     echo "🚀 全ペインでClaudeを起動します..."
     
     # 全ペインで同時にclaudeを起動
-    tmux send-keys -t "%3" "claude --dangerously-skip-permissions" C-m
-    sleep 1
-    tmux send-keys -t "%3" "3" C-m
-    
+    tmux send-keys -t "%3" "claude" C-m
     for pane in ${TEAM_PANES[@]}; do
-        tmux send-keys -t "$pane" "claude --dangerously-skip-permissions" C-m
-        sleep 0.5
-        tmux send-keys -t "$pane" "3" C-m
+        tmux send-keys -t "$pane" "claude" C-m
     done
     
     echo "✅ Claude起動完了"
-    echo "※ --dangerously-skip-permissionsフラグを使用しています"
-    echo "※ ダークモード（3）を自動選択しています"
 }
 
 echo "🎯 Claude Pro Dev 準備完了！"

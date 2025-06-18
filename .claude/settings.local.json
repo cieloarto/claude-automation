@@ -23,7 +23,16 @@
       "Bash(timeout:*)",
       "Bash(env)",
       "Bash(/Users/masa/dev/claude-automation/test-claude-setup.sh)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(claude --version)",
+      "Bash(tmux send-keys:*)",
+      "Bash(for i in {2..5})",
+      "Bash(do tmux send-keys -t claude-pro-dev:0.$i \"3\" C-m)",
+      "Bash(done)",
+      "Bash(for pane in 1 2 3 4 5)",
+      "Bash(do tmux send-keys -t claude-pro-dev:0.$pane \"2\" C-m)",
+      "Bash(tmux list-panes:*)",
+      "Bash(tmux select-layout:*)"
     ],
     "deny": []
   }

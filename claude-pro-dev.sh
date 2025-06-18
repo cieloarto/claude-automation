@@ -46,8 +46,11 @@ cat > "$WORKSPACE_DIR/.setup-qa.sh" << 'EOF'
 export PS1='QA> '
 EOF
 
-# tmuxセッション作成
+# tmuxセッション作成（history-limit設定付き）
 tmux new-session -d -s "$SESSION_NAME" -c "$WORKSPACE_DIR"
+tmux set-option -t "$SESSION_NAME" -g history-limit 2000
+tmux set-option -t "$SESSION_NAME" -g status on
+tmux set-option -t "$SESSION_NAME" -g status-position bottom
 
 # 横3列のレイアウトを作成
 # まず2つの縦分割を作成（3列にする）
@@ -66,18 +69,21 @@ tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
 tmux select-pane -t 4
 tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
 
-# レイアウト調整：各列の幅を調整
-tmux select-pane -t 0
-tmux resize-pane -x 50  # 左列の幅を50文字に設定
+# レイアウト調整：tiled layoutを適用してから調整
+tmux select-layout -t "$SESSION_NAME" tiled
+sleep 0.5
 
-# 左列の上下分割の比率調整（マネージャーを小さく）
-tmux select-pane -t 0
-tmux resize-pane -y 10  # マネージャーペインの高さを10行に設定
+# 左列の幅を設定（マネージャーとQA）
+tmux select-pane -t "$SESSION_NAME:0.0"
+tmux resize-pane -x 60
 
-# 中央列と右列の幅を均等に
-tmux select-layout even-horizontal
-tmux select-pane -t 0
-tmux resize-pane -x 50  # 左列の幅を再調整
+# マネージャーペインの高さを調整
+tmux select-pane -t "$SESSION_NAME:0.0"
+tmux resize-pane -y 12
+
+# 残りのペインを均等に配置
+tmux select-layout -t "$SESSION_NAME" main-vertical
+tmux select-pane -t "$SESSION_NAME:0.0"
 
 # ペイン情報取得
 PANE_INFO=$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_index}:#{pane_id}")
@@ -496,19 +502,12 @@ start-claude() {
     echo "🚀 全ペインでClaudeを起動します..."
     
     # 全ペインで同時にclaudeを起動
-    tmux send-keys -t "$QA_PANE" "claude --dangerously-skip-permissions" C-m
-    sleep 1
-    tmux send-keys -t "$QA_PANE" "3" C-m
-    
+    tmux send-keys -t "$QA_PANE" "claude" C-m
     for pane in \${TEAM_PANES[@]}; do
-        tmux send-keys -t "\$pane" "claude --dangerously-skip-permissions" C-m
-        sleep 0.5
-        tmux send-keys -t "\$pane" "3" C-m
+        tmux send-keys -t "\$pane" "claude" C-m
     done
     
     echo "✅ Claude起動完了"
-    echo "※ --dangerously-skip-permissionsフラグを使用しています"
-    echo "※ ダークモード（3）を自動選択しています"
 }
 
 echo "🎯 Claude Pro Dev 準備完了！"
@@ -578,16 +577,16 @@ if [ ! -f ~/.config/claude/config.json ]; then
     echo '{"theme":"dark","analytics":false}' > ~/.config/claude/config.json
 fi
 
-# 自動でClaude起動
+# 環境変数を設定
+export CLAUDE_SKIP_SETUP=true
+export CLAUDE_THEME=dark
+export CLAUDE_SKIP_ONBOARDING=true
+
+# 自動でClaude起動（危険なフラグなし）
 echo "🚀 Claudeを自動起動中..."
-tmux send-keys -t "$QA_PANE" "claude --dangerously-skip-permissions" C-m
-sleep 1
-# 自動でテーマ選択（3を送信してダークモード選択）
-tmux send-keys -t "$QA_PANE" "3" C-m
+tmux send-keys -t "$QA_PANE" "claude" C-m
 for i in ${!TEAM_PANES[@]}; do
-    tmux send-keys -t "${TEAM_PANES[$i]}" "claude --dangerously-skip-permissions" C-m
-    sleep 0.5
-    tmux send-keys -t "${TEAM_PANES[$i]}" "3" C-m
+    tmux send-keys -t "${TEAM_PANES[$i]}" "claude" C-m
 done
 
 sleep 3
