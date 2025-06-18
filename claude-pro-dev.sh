@@ -129,6 +129,10 @@ requirements() {
     
     export DEVELOPMENT_PHASE="requirements"
     echo "[MANAGER] 要件定義フェーズを開始: \$project_desc"
+    echo ""
+    echo "⚠️  注意: 各ペインでClaudeが起動していることを確認してください"
+    echo "  起動していない場合は 'start-claude' を実行してください"
+    echo ""
     
     # QAペインでClaudeに指示を送信（1つのメッセージとして）
     tmux send-keys -t "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。以下の形式でdocs/requirements/requirements.mdに保存してください：1. プロジェクト概要、2. 機能要件、3. 非機能要件、4. 制約事項" C-m
@@ -228,13 +232,20 @@ status() {
 # 進捗確認
 progress() {
     echo "[MANAGER] 全チーム進捗確認"
+    echo "→ QAチームと各開発チームに進捗確認を送信しました"
     
+    # QAペインに送信（Claudeが起動していることを前提）
     tmux send-keys -t "$QA_PANE" "現在の進捗状況を報告してください。" C-m
     
-    for i in 0 1 2 3; do
-        if [ \$i -lt \${#TEAM_PANES[@]} ]; then
-            local team_letter=\$(printf "\x\$(printf %x \$((65 + i)))")
-            tmux send-keys -t "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 現在の進捗状況を報告してください。" C-m
+    # 各開発チームに送信
+    local num_teams=\$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_id}" | wc -l)
+    num_teams=\$((num_teams - 2))  # マネージャーとQAを除く
+    
+    for i in \$(seq 0 \$((num_teams - 1))); do
+        local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
+        local pane_id="\${TEAM_PANES[\$i]}"
+        if [ -n "\$pane_id" ]; then
+            tmux send-keys -t "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。" C-m
         fi
     done
 }
