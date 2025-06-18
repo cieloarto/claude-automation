@@ -138,6 +138,14 @@ implementation() {
     
     # 各チームに最初のタスクを割り当て
     assign-all-teams
+    
+    # 少し待ってから各チームで実行開始
+    echo "🔄 各チームでタスク実行を開始します..."
+    sleep 3
+    for i in {2..5}; do 
+        tmux send-keys -t "claude-pro-dev:0.$i" C-m
+        sleep 0.5
+    done
 }
 
 # 全チームにタスクを割り当て
@@ -164,6 +172,8 @@ assign-task-to-team() {
         echo "📌 チーム$team に割り当て: $task"
         sleep 1
         tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: $task を実装してください。完了後'team-done $team'実行。" C-m
+        sleep 1
+        tmux send-keys -t "claude-pro-dev:0.$pane" C-m
         
         ((TASK_INDEX++))
     else
