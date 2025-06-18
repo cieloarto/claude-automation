@@ -155,9 +155,11 @@ implementation() {
     echo "[MANAGER] 実装フェーズを開始"
     
     # 各開発チームに通知
-    for i in \${!TEAM_PANES[@]}; do
-        local team_letter=\$(printf "\x\$(printf %x \$((65 + i)))")
-        send_to_claude "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 実装フェーズ開始。タスク割り当てを待機してください。"
+    local i=0
+    for pane in \${TEAM_PANES[@]}; do
+        local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
+        send_to_claude "\$pane" "チーム\$team_letter: 実装フェーズ開始。タスク割り当てを待機してください。"
+        ((i++))
     done
 }
 
