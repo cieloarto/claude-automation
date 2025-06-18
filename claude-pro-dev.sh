@@ -153,14 +153,31 @@ design() {
 implementation() {
     export DEVELOPMENT_PHASE="implementation"
     echo "[MANAGER] 実装フェーズを開始"
+    echo "→ タスクを自動的に各チームに割り当てます"
     
-    # 各開発チームに通知
+    # 各開発チームに自動的にタスクを割り当て
+    local tasks=(
+        "Next.jsプロジェクトのセットアップと基本構成を実装してください。package.json、tsconfig.json、next.config.jsなどの初期設定を含めてください。"
+        "共通レイアウトコンポーネントとナビゲーションを実装してください。ヘッダー、フッター、サイドバーなどの基本UIコンポーネントを作成してください。"
+        "ホームページとメインのページコンポーネントを実装してください。ルーティング設定も含めて実装してください。"
+        "APIルートとデータ取得ロジックを実装してください。必要に応じてモックデータも作成してください。"
+    )
+    
     local i=0
     for pane in \${TEAM_PANES[@]}; do
         local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
-        send_to_claude "\$pane" "チーム\$team_letter: 実装フェーズ開始。タスク割り当てを待機してください。"
+        if [ \$i -lt \${#tasks[@]} ]; then
+            send_to_claude "\$pane" "チーム\$team_letter: \${tasks[\$i]}"
+            echo "  → チーム\$team_letter: タスク\$((i+1))を割り当て"
+        else
+            send_to_claude "\$pane" "チーム\$team_letter: 他のチームのサポートとコードレビューを担当してください。"
+            echo "  → チーム\$team_letter: サポート役を割り当て"
+        fi
         ((i++))
     done
+    
+    echo ""
+    echo "✅ タスク割り当て完了"
 }
 
 # タスク割り当て
