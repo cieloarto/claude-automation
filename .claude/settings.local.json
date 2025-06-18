@@ -14,7 +14,16 @@
       "Bash(tmux kill-session:*)",
       "Bash(rm:*)",
       "Bash(echo:*)",
-      "Bash(echo \"3. PM> start-claude\")"
+      "Bash(echo \"3. PM> start-claude\")",
+      "Bash(cc-company)",
+      "Bash(claude --dangerously-skip-permissions --print \"test\")",
+      "Bash(claude config --help)",
+      "Bash(claude config list)",
+      "Bash(claude config set hasTrustDialogAccepted true)",
+      "Bash(timeout:*)",
+      "Bash(env)",
+      "Bash(/Users/masa/dev/claude-automation/test-claude-setup.sh)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
