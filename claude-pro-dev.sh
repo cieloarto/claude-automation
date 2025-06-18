@@ -168,6 +168,15 @@ assign-task-to-team() {
     
     if [ $TASK_INDEX -lt ${#TASKS[@]} ]; then
         local task="${TASKS[$TASK_INDEX]}"
+        
+        # 空のタスクをスキップ
+        if [ -z "$task" ]; then
+            echo "⚠️ 空のタスクをスキップします（インデックス: $TASK_INDEX）"
+            ((TASK_INDEX++))
+            assign-task-to-team "$team"
+            return
+        fi
+        
         TEAM_STATUS[$team]="working"
         TEAM_CURRENT_TASK[$team]="$task"
         
@@ -193,11 +202,20 @@ team-done() {
     fi
     
     local completed_task="${TEAM_CURRENT_TASK[$team]}"
+    
+    # 空のタスクをチェック
+    if [ -z "$completed_task" ]; then
+        echo "⚠️ チーム$team: 現在のタスクが設定されていません"
+        return 1
+    fi
+    
     echo "✅ チーム$team が開発完了: $completed_task"
     
     # QAチームにテスト依頼
     echo "🔍 QAチームにテスト確認を依頼"
     tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』完了。テスト・レビュー後'qa-approve $team'実行してください。" C-m
+    sleep 1
+    tmux send-keys -t "claude-pro-dev:0.1" C-m
     
     # チームを一時的にQA待ち状態に
     TEAM_STATUS[$team]="qa_review"
