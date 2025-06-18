@@ -75,8 +75,12 @@ help() {
     echo "【タスク管理】"
     echo "  add-task '<タスク>'   - タスクをキューに追加"
     echo "  task-status          - 各チームの状況確認"
-    echo "  team-done <チーム>   - チームのタスク完了報告"
+    echo "  team-done <チーム> \"<タスク名>\" - チームのタスク完了処理"
     echo "  assign-next          - 次のタスクを自動割り当て"
+    echo ""
+    echo "【QA・PR管理】"
+    echo "  qa-approve <チーム> \"<タスク名>\" - QA承認とPR作成指示"
+    echo "  pr-created <チーム>  - PR作成完了報告"
     echo ""
     echo "【自動監視】"
     echo "  start-monitor        - 自動監視開始"
@@ -182,7 +186,7 @@ assign-task-to-team() {
         
         echo "📌 チーム$team に割り当て: $task"
         sleep 1
-        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: $task を実装してください。完了後'team-done $team \"$task\"'実行。" C-m
+        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: $task を実装してください。完了後マネージャーペインで'team-done $team \"$task\"'実行。" C-m
         sleep 1
         tmux send-keys -t "claude-pro-dev:0.$pane" C-m
         
@@ -222,7 +226,7 @@ team-done() {
     
     # QAチームにテスト依頼
     echo "🔍 QAチームにテスト確認を依頼"
-    tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』完了。テスト・レビュー後'qa-approve $team \"$completed_task\"'実行してください。" C-m
+    tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』完了。テスト・レビュー後マネージャーペインで'qa-approve $team \"$completed_task\"'実行してください。" C-m
     sleep 1
     tmux send-keys -t "claude-pro-dev:0.1" C-m
     
@@ -293,7 +297,7 @@ qa-approve() {
     declare -A pane_map=([A]=2 [B]=3 [C]=4 [D]=5)
     local pane="${pane_map[$team]}"
     
-    tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成手順: 1.git add . 2.git commit -m 'feat: $current_task' 3.git push 4.gh pr create 完了後'pr-created $team'実行" C-m
+    tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成手順: 1.git add . 2.git commit -m 'feat: $current_task' 3.git push 4.gh pr create 完了後マネージャーペインで'pr-created $team'実行" C-m
     sleep 1
     tmux send-keys -t "claude-pro-dev:0.$pane" C-m
     
