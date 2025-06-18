@@ -96,6 +96,9 @@ export DEVELOPMENT_PHASE="requirements"
 help() {
     echo "📚 Claude Pro Dev - 利用可能なコマンド"
     echo ""
+    echo "【初期設定】"
+    echo "  start-claude - 全ペインでClaudeを起動（最初に実行）"
+    echo ""
     echo "【開発フェーズ】"
     echo "  requirements '<説明>'     - 要件定義フェーズ開始"
     echo "  design                   - 設計フェーズ開始"
@@ -268,13 +271,31 @@ exit-project() {
 alias st='status'
 alias pg='progress'
 
-# Claude実行関数（バックグラウンドで実行）
+# Claudeにメッセージを送信（シンプル版）
 send_to_claude() {
     local pane_id="\$1"
     local message="\$2"
     
-    # メッセージをClaudeに送信（パイプ使用）
-    tmux send-keys -t "\$pane_id" "echo '\$message' | claude" C-m
+    # 現在のアプローチ: メッセージをコメントとして送信
+    # ユーザーがClaudeを手動で起動する必要がある
+    tmux send-keys -t "\$pane_id" "# \$message" C-m
+}
+
+# Claude起動コマンド
+start-claude() {
+    echo "🚀 全ペインでClaudeを起動します..."
+    
+    # QAペイン
+    tmux send-keys -t "$QA_PANE" "claude" C-m
+    
+    # 開発チーム
+    for pane in \${TEAM_PANES[@]}; do
+        sleep 0.2
+        tmux send-keys -t "\$pane" "claude" C-m
+    done
+    
+    echo "✅ Claude起動完了"
+    echo "※ 各ペインでClaudeプロンプトが表示されるまで待ってください"
 }
 
 echo "🎯 Claude Pro Dev 準備完了！"
@@ -339,7 +360,7 @@ echo "   - requirements '<プロジェクト説明>'"
 echo "   - design"
 echo "   - implementation"
 echo ""
-echo "※ Claudeへの指示は自動的にバックグラウンドで実行されます"
+echo "※ 最初に 'start-claude' を実行してClaudeを起動してください"
 echo ""
 echo "アタッチ中..."
 sleep 1
