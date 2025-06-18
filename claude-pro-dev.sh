@@ -129,10 +129,6 @@ requirements() {
     
     export DEVELOPMENT_PHASE="requirements"
     echo "[MANAGER] 要件定義フェーズを開始: \$project_desc"
-    echo ""
-    echo "⚠️  注意: 各ペインでClaudeが起動していることを確認してください"
-    echo "  起動していない場合は 'start-claude' を実行してください"
-    echo ""
     
     # QAペインでClaudeに指示を送信（1つのメッセージとして）
     tmux send-keys -t "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。以下の形式でdocs/requirements/requirements.mdに保存してください：1. プロジェクト概要、2. 機能要件、3. 非機能要件、4. 制約事項" C-m
@@ -320,15 +316,15 @@ cat > "$WORKSPACE_DIR/banner-qa.txt" << 'EOF'
 ║    QA & テストチーム               ║
 ╚════════════════════════════════════╝
 
-Claude起動: claude
+準備完了
 EOF
 
 # 各ペインでセットアップ
 # マネージャー
 tmux send-keys -t "$MANAGER_PANE" "source .setup-manager.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
 
-# QA - セットアップのみ（Claudeは手動起動）
-tmux send-keys -t "$QA_PANE" "source .setup-qa.sh && clear && cat banner-qa.txt" C-m
+# QA - セットアップ
+tmux send-keys -t "$QA_PANE" "source .setup-qa.sh && clear && cat banner-qa.txt && export PS1='QA> '" C-m
 
 # 開発チーム
 for i in ${!TEAM_PANES[@]}; do
@@ -339,23 +335,27 @@ for i in ${!TEAM_PANES[@]}; do
 export PS1='T$team_letter> '
 EOF
 
-    cat > "$WORKSPACE_DIR/banner-team-$i.txt" << EOF
-╔════════════════════════════════════╗
-║       開発チーム $team_letter              ║
-╚════════════════════════════════════╝
+    # バナーファイル作成（文字化け対策）
+    echo "╔════════════════════════════════════╗" > "$WORKSPACE_DIR/banner-team-$i.txt"
+    echo "║       開発チーム $team_letter              ║" >> "$WORKSPACE_DIR/banner-team-$i.txt"
+    echo "╚════════════════════════════════════╝" >> "$WORKSPACE_DIR/banner-team-$i.txt"
+    echo "" >> "$WORKSPACE_DIR/banner-team-$i.txt"
+    echo "準備完了" >> "$WORKSPACE_DIR/banner-team-$i.txt"
 
-Claude起動: claude
-EOF
-
-    tmux send-keys -t "${TEAM_PANES[$i]}" "source .setup-team-$i.sh && clear && cat banner-team-$i.txt" C-m
+    tmux send-keys -t "${TEAM_PANES[$i]}" "source .setup-team-$i.sh && clear && cat banner-team-$i.txt && export PS1='T$team_letter> '" C-m
 done
+
+# Claude起動待機
+echo ""
+echo "⏳ 初期化中..."
+sleep 3
 
 echo ""
 echo "🎉 セットアップ完了！"
 echo ""
 echo "📋 開始手順:"
-echo "1. マネージャーペインで 'start-claude' を実行（全ペインでClaude起動）"
-echo "2. その後、以下のコマンドを実行:"
+echo "1. マネージャーペインで 'start-claude' を実行"
+echo "2. 各ペインでClaudeが起動したら、以下のコマンドが使用可能:"
 echo "   - requirements '<プロジェクト説明>'"
 echo "   - design"
 echo "   - implementation"
