@@ -37,6 +37,7 @@ tmux split-window -v -t "$SESSION_NAME:0.4" -p 50
 # プロンプト設定
 cat > "$WORK_DIR/.setup-manager.sh" << 'EOF'
 export PS1='PM> '
+source .commands.sh
 EOF
 
 cat > "$WORK_DIR/.setup-qa.sh" << 'EOF'
@@ -442,10 +443,10 @@ EOF
 
 # 各ペインの初期化
 # マネージャー (左上)
-tmux send-keys -t "$SESSION_NAME:0.0" "cd $WORK_DIR && source .setup-manager.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
+tmux send-keys -t "$SESSION_NAME:0.0" "cd $WORK_DIR && source .setup-manager.sh && sleep 1 && clear && cat banner-manager.txt" C-m
 
 # QA (左下)
-tmux send-keys -t "$SESSION_NAME:0.1" "cd $WORK_DIR && source .setup-qa.sh && clear && cat banner-qa.txt" C-m
+tmux send-keys -t "$SESSION_NAME:0.1" "cd $WORK_DIR && source .setup-qa.sh && sleep 1 && clear && cat banner-qa.txt" C-m
 
 # 開発チーム (中央上下、右上下)
 for i in {2..5}; do
@@ -462,7 +463,7 @@ EOF
 ╚════════════════════════════════════╝
 EOF
 
-    tmux send-keys -t "$SESSION_NAME:0.$i" "cd $WORK_DIR && source .setup-team-$i.sh && clear && cat banner-team-$i.txt" C-m
+    tmux send-keys -t "$SESSION_NAME:0.$i" "cd $WORK_DIR && source .setup-team-$i.sh && sleep 1 && clear && cat banner-team-$i.txt" C-m
 done
 
 # 自動でClaude起動（遅延実行）
