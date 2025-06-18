@@ -41,6 +41,7 @@ EOF
 
 cat > "$WORK_DIR/.setup-qa.sh" << 'EOF'
 export PS1='QA> '
+source .commands.sh
 EOF
 
 # コマンドスクリプト
@@ -452,6 +453,7 @@ for i in {2..5}; do
     
     cat > "$WORK_DIR/.setup-team-$i.sh" << EOF
 export PS1='T$team_letter> '
+source "$WORK_DIR/.commands.sh"
 EOF
 
     cat > "$WORK_DIR/banner-team-$i.txt" << EOF
