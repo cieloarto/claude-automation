@@ -1,56 +1,80 @@
 help() {
     echo "📚 Claude Pro Dev - コマンド一覧"
     echo ""
-    echo "【Claude管理】"
-    echo "  claude-all           - 全ペインでClaude起動"
+    echo "【タスク管理】"
+    echo "  add-task '<タスク>'   - タスクをキューに追加"
+    echo "  task-status          - 各チームの状況確認"
+    echo "  team-done <チーム>   - チームのタスク完了報告"
+    echo "  start-monitor        - 自動監視開始"
+    echo "  stop-monitor         - 自動監視停止"
     echo ""
-    echo "【開発フェーズ】"
-    echo "  requirements '<説明>' - 要件定義開始"
-    echo "  design               - 設計フェーズ"
-    echo "  implementation       - 実装フェーズ"
+}
+
+# タスク管理用の変数
+declare -a TASKS=()
+declare -A TEAM_STATUS
+declare -A TEAM_CURRENT_TASK
+TASK_INDEX=0
+
+# チーム初期化
+TEAM_STATUS[A]="idle"
+TEAM_STATUS[B]="idle" 
+TEAM_STATUS[C]="idle"
+TEAM_STATUS[D]="idle"
+
+# タスク追加
+add-task() {
+    local task="$1"
+    TASKS+=("$task")
+    echo "✅ タスク追加: $task"
+}
+
+# 特定チームにタスクを割り当て
+assign-task-to-team() {
+    local team="$1"
+    local pane_map=(["A"]=2 ["B"]=3 ["C"]=4 ["D"]=5)
+    local pane="${pane_map[$team]}"
+    
+    if [ $TASK_INDEX -lt ${#TASKS[@]} ]; then
+        local task="${TASKS[$TASK_INDEX]}"
+        TEAM_STATUS[$team]="working"
+        TEAM_CURRENT_TASK[$team]="$task"
+        
+        echo "📌 チーム$team に割り当て: $task"
+        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: 次のタスクを実装してください: $task" C-m
+        
+        ((TASK_INDEX++))
+    fi
+}
+
+# チームのタスク完了
+team-done() {
+    local team="$1"
+    echo "✅ チーム$team がタスクを完了しました"
+    TEAM_STATUS[$team]="idle"
+    
+    if [ $TASK_INDEX -lt ${#TASKS[@]} ]; then
+        assign-task-to-team "$team"
+    fi
+}
+
+# タスク状況確認
+task-status() {
+    echo "📊 タスク進捗状況"
+    echo "完了: $TASK_INDEX / ${#TASKS[@]} タスク"
     echo ""
-    echo "【その他】"
-    echo "  clear-all            - 全ペインクリア"
-    echo "  exit-project         - 終了"
-}
-
-claude-all() {
-    echo "🚀 各ペインでClaudeを起動します..."
-    # QAペイン
-    tmux send-keys -t "claude-pro-dev:0.1" "claude" C-m
-    # 開発チーム
-    for i in {2..5}; do
-        tmux send-keys -t "claude-pro-dev:0.$i" "claude" C-m
+    for team in A B C D; do
+        echo "チーム$team: ${TEAM_STATUS[$team]}"
     done
 }
 
-requirements() {
-    local desc="$1"
-    echo "[MANAGER] 要件定義: $desc"
-    tmux send-keys -t "claude-pro-dev:0.1" "プロジェクト『$desc』の要件定義書を作成してください" C-m
+# 自動監視（簡易版）
+start-monitor() {
+    echo "🔍 自動監視を開始します..."
+    echo "💡 各チームの完了は 'team-done <チーム>' で報告してください"
 }
 
-design() {
-    echo "[MANAGER] 設計フェーズ開始"
-    tmux send-keys -t "claude-pro-dev:0.1" "設計書を作成してください" C-m
+stop-monitor() {
+    echo "⏹️ 監視停止"
 }
-
-implementation() {
-    echo "[MANAGER] 実装フェーズ開始"
-    local teams=(A B C D)
-    for i in {0..3}; do
-        local pane=$((i + 2))
-        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム${teams[$i]}: 実装を開始してください" C-m
-    done
-}
-
-clear-all() {
-    for i in {0..5}; do
-        tmux send-keys -t "claude-pro-dev:0.$i" "clear" C-m
-    done
-}
-
-exit-project() {
-    tmux kill-session -t "claude-pro-dev"
-    exit 0
-}
+EOF < /dev/null

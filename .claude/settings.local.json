@@ -34,7 +34,8 @@
       "Bash(tmux list-panes:*)",
       "Bash(tmux select-layout:*)",
       "Bash(for i in {1..5})",
-      "Bash(do tmux send-keys -t claude-pro-dev:0.$i C-m)"
+      "Bash(do tmux send-keys -t claude-pro-dev:0.$i C-m)",
+      "Bash(do tmux send-keys -t claude-pro-dev:0.$i \"1\" C-m)"
     ],
     "deny": []
   }
