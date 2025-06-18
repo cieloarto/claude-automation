@@ -37,7 +37,10 @@
       "Bash(do tmux send-keys -t claude-pro-dev:0.$i C-m)",
       "Bash(do tmux send-keys -t claude-pro-dev:0.$i \"1\" C-m)",
       "Bash(bash:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
