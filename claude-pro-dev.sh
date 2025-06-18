@@ -182,7 +182,7 @@ assign-task-to-team() {
         
         echo "📌 チーム$team に割り当て: $task"
         sleep 1
-        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: $task を実装してください。完了後'team-done $team'実行。" C-m
+        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: $task を実装してください。完了後'team-done $team \"$task\"'実行。" C-m
         sleep 1
         tmux send-keys -t "claude-pro-dev:0.$pane" C-m
         
@@ -196,16 +196,25 @@ assign-task-to-team() {
 # チームのタスク完了（QAフロー付き）
 team-done() {
     local team="$1"
+    local task_name="$2"
+    
     if [ -z "$team" ]; then
-        echo "使用方法: team-done <チーム名(A/B/C/D)>"
+        echo "使用方法: team-done <チーム名(A/B/C/D)> [タスク名]"
         return 1
     fi
     
-    local completed_task="${TEAM_CURRENT_TASK[$team]}"
+    # タスク名が引数で渡されていない場合は、配列から取得を試みる
+    local completed_task
+    if [ -n "$task_name" ]; then
+        completed_task="$task_name"
+    else
+        completed_task="${TEAM_CURRENT_TASK[$team]}"
+    fi
     
     # 空のタスクをチェック
     if [ -z "$completed_task" ]; then
-        echo "⚠️ チーム$team: 現在のタスクが設定されていません"
+        echo "⚠️ チーム$team: タスク名が指定されていません"
+        echo "使用方法: team-done $team \"タスク名\""
         return 1
     fi
     
