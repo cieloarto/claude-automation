@@ -113,12 +113,10 @@ help() {
     echo "  import-knowledge '<URL>' '<説明>' - 外部知識をインポート"
     echo ""
     echo "【その他】"
-    echo "  status          - プロジェクト状況確認"
-    echo "  progress        - 進捗確認（ファイル報告）"
-    echo "  check-progress  - 報告状況を確認"
-    echo "  summary-progress - 進捗サマリー生成"
-    echo "  clear-all       - 全ペインクリア"
-    echo "  exit-project    - プロジェクト終了"
+    echo "  status       - プロジェクト状況確認"
+    echo "  progress     - 進捗確認"
+    echo "  clear-all    - 全ペインクリア"
+    echo "  exit-project - プロジェクト終了"
 }
 
 # 要件定義フェーズ
@@ -222,20 +220,13 @@ status() {
     echo "  開発チーム数: ${#TEAM_PANES[@]}"
 }
 
-# 進捗確認（ファイル経由で報告を収集）
+# 進捗確認（シンプル版）
 progress() {
     echo "[MANAGER] 全チーム進捗確認"
-    
-    # 進捗報告用ディレクトリを作成
-    local report_dir="\$WORKSPACE_DIR/reports/progress"
-    mkdir -p "\$report_dir"
-    rm -f "\$report_dir"/*.txt 2>/dev/null
-    
-    # タイムスタンプ
-    local timestamp=\$(date +"%Y%m%d_%H%M%S")
+    echo "→ 各チームに進捗報告を依頼しました"
     
     # QAペインに送信
-    send_to_claude "$QA_PANE" "現在の進捗状況を報告してください。報告が完了したら、内容を \$report_dir/qa_\$timestamp.txt に保存してください。"
+    send_to_claude "$QA_PANE" "現在の進捗状況を報告してください。"
     
     # 各開発チームに送信
     local num_teams=\$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_id}" | wc -l)
@@ -245,14 +236,12 @@ progress() {
         local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
         local pane_id="\${TEAM_PANES[\$i]}"
         if [ -n "\$pane_id" ]; then
-            send_to_claude "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。報告が完了したら、内容を \$report_dir/team\${team_letter}_\$timestamp.txt に保存してください。"
+            send_to_claude "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。"
         fi
     done
     
-    echo "→ 進捗確認を送信しました"
-    echo "→ 報告は \$report_dir に保存されます"
     echo ""
-    echo "💡 ヒント: check-progress で報告状況を確認できます"
+    echo "💡 各ペインで報告を確認: Ctrl+b → 矢印キー"
 }
 
 # 進捗報告の確認
