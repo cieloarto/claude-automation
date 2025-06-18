@@ -37,19 +37,13 @@ mkdir -p "$WORKSPACE_DIR/docs"/{requirements,design,tasks,tests,knowledge}
 
 # プロンプト設定スクリプト作成
 cat > "$WORKSPACE_DIR/.setup-manager.sh" << 'EOF'
-if [ -n "$ZSH_VERSION" ]; then
-    export PS1='%F{cyan}PM>%f '
-else
-    export PS1='PM> '
-fi
+# シンプルなプロンプト設定
+export PS1='PM> '
 EOF
 
 cat > "$WORKSPACE_DIR/.setup-qa.sh" << 'EOF'
-if [ -n "$ZSH_VERSION" ]; then
-    export PS1='%F{yellow}QA>%f '
-else
-    export PS1='QA> '
-fi
+# シンプルなプロンプト設定
+export PS1='QA> '
 EOF
 
 # tmuxセッション作成
@@ -310,28 +304,23 @@ cat > "$WORKSPACE_DIR/banner-qa.txt" << 'EOF'
 ║    QA & テストチーム               ║
 ╚════════════════════════════════════╝
 
-Claude起動中...
+Claude起動: claude
 EOF
 
 # 各ペインでセットアップ
 # マネージャー
 tmux send-keys -t "$MANAGER_PANE" "source .setup-manager.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
 
-# QA - セットアップ後に自動でClaude起動
+# QA - セットアップのみ（Claudeは手動起動）
 tmux send-keys -t "$QA_PANE" "source .setup-qa.sh && clear && cat banner-qa.txt" C-m
-sleep 1
-tmux send-keys -t "$QA_PANE" "claude" C-m
 
 # 開発チーム
 for i in ${!TEAM_PANES[@]}; do
     team_letter=$(printf "\x$(printf %x $((65 + i)))")
     
     cat > "$WORKSPACE_DIR/.setup-team-$i.sh" << EOF
-if [ -n "\$ZSH_VERSION" ]; then
-    export PS1='%F{green}T$team_letter>%f '
-else
-    export PS1='T$team_letter> '
-fi
+# シンプルなプロンプト設定
+export PS1='T$team_letter> '
 EOF
 
     cat > "$WORKSPACE_DIR/banner-team-$i.txt" << EOF
@@ -339,28 +328,21 @@ EOF
 ║       開発チーム $team_letter              ║
 ╚════════════════════════════════════╝
 
-Claude起動中...
+Claude起動: claude
 EOF
 
     tmux send-keys -t "${TEAM_PANES[$i]}" "source .setup-team-$i.sh && clear && cat banner-team-$i.txt" C-m
-    sleep 0.5
-    # 自動でClaude起動
-    tmux send-keys -t "${TEAM_PANES[$i]}" "claude" C-m
 done
 
 echo ""
 echo "🎉 セットアップ完了！"
 echo ""
-echo "⏳ Claudeを各ペインで起動中..."
-sleep 3
-echo ""
 echo "📋 開始手順:"
-echo "マネージャーペインで以下を実行:"
+echo "1. マネージャーペインで 'start-claude' を実行（全ペインでClaude起動）"
+echo "2. その後、以下のコマンドを実行:"
 echo "   - requirements '<プロジェクト説明>'"
 echo "   - design"
 echo "   - implementation"
-echo ""
-echo "※ Claudeの起動に失敗した場合は、各ペインで手動で 'claude' を実行してください"
 echo ""
 echo "アタッチ中..."
 sleep 1

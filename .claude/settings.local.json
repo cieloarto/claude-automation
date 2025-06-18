@@ -11,7 +11,8 @@
       "Bash(find:*)",
       "Bash(cp:*)",
       "Bash(./claude-pro-dev.sh:*)",
-      "Bash(tmux kill-session:*)"
+      "Bash(tmux kill-session:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
