@@ -172,7 +172,7 @@ assign-task-to-team() {
     fi
 }
 
-# チームのタスク完了
+# チームのタスク完了（QAフロー付き）
 team-done() {
     local team="$1"
     if [ -z "$team" ]; then
@@ -180,15 +180,26 @@ team-done() {
         return 1
     fi
     
-    echo "✅ チーム$team がタスクを完了しました: ${TEAM_CURRENT_TASK[$team]}"
-    TEAM_STATUS[$team]="idle"
+    local completed_task="${TEAM_CURRENT_TASK[$team]}"
+    echo "✅ チーム$team が開発完了: $completed_task"
     
-    # 次のタスクがあれば自動で割り当て
+    # QAチームにテスト依頼
+    echo "🔍 QAチームにテスト確認を依頼"
+    tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』を完了しました。テストとコードレビューをお願いします。合格したら 'qa-approve $team' を実行してください。" C-m
+    
+    # チームを一時的にQA待ち状態に
+    TEAM_STATUS[$team]="qa_review"
+    
+    # 次のタスクがあれば他のアイドルチームに割り当て
     if [ $TASK_INDEX -lt ${#TASKS[@]} ]; then
-        echo "🔄 次のタスクを割り当てます..."
-        assign-task-to-team "$team"
-    else
-        echo "🎉 チーム$team: 全タスク完了！"
+        echo "🔄 他のチームに次のタスクを割り当てます..."
+        # アイドル状態のチームを探して割り当て
+        for idle_team in A B C D; do
+            if [ "${TEAM_STATUS[$idle_team]}" = "idle" ] && [ $TASK_INDEX -lt ${#TASKS[@]} ]; then
+                assign-task-to-team "$idle_team"
+                break
+            fi
+        done
     fi
 }
 
@@ -217,6 +228,81 @@ task-status() {
 # 次のタスクを割り当て
 assign-next() {
     assign-all-teams
+}
+
+# QA承認とPR作成フロー
+qa-approve() {
+    local team="$1"
+    if [ -z "$team" ]; then
+        echo "使用方法: qa-approve <チーム名(A/B/C/D)>"
+        return 1
+    fi
+    
+    local current_task="${TEAM_CURRENT_TASK[$team]}"
+    echo "✅ QA承認: チーム$team の『$current_task』"
+    
+    # PR作成指示
+    local pane_map=(["A"]=2 ["B"]=3 ["C"]=4 ["D"]=5)
+    local pane="${pane_map[$team]}"
+    
+    tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成してください:
+1. git add .
+2. git commit -m 'feat: $current_task'
+3. git push origin feature/team$team-task
+4. gh pr create --title '$current_task' --body 'チーム$team による実装'
+完了したら 'pr-created $team' を実行してください。" C-m
+    
+    # チームをPR作成待ち状態に
+    TEAM_STATUS[$team]="pr_creation"
+}
+
+# PR作成完了
+pr-created() {
+    local team="$1"
+    if [ -z "$team" ]; then
+        echo "使用方法: pr-created <チーム名(A/B/C/D)>"
+        return 1
+    fi
+    
+    local current_task="${TEAM_CURRENT_TASK[$team]}"
+    echo "🎉 PR作成完了: チーム$team の『$current_task』"
+    echo "📊 タスク『$current_task』が完全に完了しました！"
+    
+    # チームをアイドル状態に戻し、次のタスクを割り当て
+    TEAM_STATUS[$team]="idle"
+    TEAM_CURRENT_TASK[$team]=""
+    
+    # 次のタスクがあれば割り当て
+    if [ $TASK_INDEX -lt ${#TASKS[@]} ]; then
+        echo "🔄 次のタスクを割り当てます..."
+        assign-task-to-team "$team"
+    else
+        echo "🎉 チーム$team: 全タスク完了！"
+    fi
+}
+
+# 完全なワークフロー状況確認
+workflow-status() {
+    echo "📊 完全なワークフロー進捗"
+    echo "========================"
+    echo "完了: $TASK_INDEX / ${#TASKS[@]} タスク"
+    echo ""
+    echo "チーム状況:"
+    for team in A B C D; do
+        echo -n "  チーム$team: ${TEAM_STATUS[$team]}"
+        if [ "${TEAM_STATUS[$team]}" = "working" ]; then
+            echo " - ${TEAM_CURRENT_TASK[$team]}"
+        else
+            echo ""
+        fi
+    done
+    echo ""
+    if [ ${#TASKS[@]} -gt 0 ]; then
+        echo "残りタスク:"
+        for ((i=$TASK_INDEX; i<${#TASKS[@]}; i++)); do
+            echo "  $((i+1)). ${TASKS[$i]}"
+        done
+    fi
 }
 
 clear-all() {
