@@ -133,9 +133,13 @@ requirements() {
     export DEVELOPMENT_PHASE="requirements"
     echo "[MANAGER] 要件定義フェーズを開始: \$project_desc"
     
-    tmux send-keys -t "$QA_PANE" "# 要件定義フェーズ開始" C-m
-    tmux send-keys -t "$QA_PANE" "# プロジェクト: \$project_desc" C-m
-    tmux send-keys -t "$QA_PANE" "# docs/requirements/requirements.md を作成してください" C-m
+    # QAペインでClaudeに指示を送信
+    tmux send-keys -t "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。" C-m
+    tmux send-keys -t "$QA_PANE" "以下の形式でdocs/requirements/requirements.mdに保存してください：" C-m
+    tmux send-keys -t "$QA_PANE" "1. プロジェクト概要" C-m
+    tmux send-keys -t "$QA_PANE" "2. 機能要件" C-m
+    tmux send-keys -t "$QA_PANE" "3. 非機能要件" C-m
+    tmux send-keys -t "$QA_PANE" "4. 制約事項" C-m
 }
 
 # 設計フェーズ
@@ -143,9 +147,11 @@ design() {
     export DEVELOPMENT_PHASE="design"
     echo "[MANAGER] 設計フェーズを開始"
     
-    tmux send-keys -t "$QA_PANE" "# 設計フェーズ開始" C-m
-    tmux send-keys -t "$QA_PANE" "# docs/design/architecture.md を作成してください" C-m
-    tmux send-keys -t "$QA_PANE" "# docs/design/database.md を作成してください" C-m
+    # QAペインでClaudeに指示を送信
+    tmux send-keys -t "$QA_PANE" "要件定義書を基に、以下の設計書を作成してください：" C-m
+    tmux send-keys -t "$QA_PANE" "1. docs/design/architecture.md - システムアーキテクチャ設計" C-m
+    tmux send-keys -t "$QA_PANE" "2. docs/design/database.md - データベース設計（必要な場合）" C-m
+    tmux send-keys -t "$QA_PANE" "3. docs/tasks/task-breakdown.md - タスク分解" C-m
 }
 
 # 実装フェーズ
@@ -156,8 +162,7 @@ implementation() {
     # 各開発チームに通知
     for i in \${!TEAM_PANES[@]}; do
         local team_letter=\$(printf "\x\$(printf %x \$((65 + i)))")
-        tmux send-keys -t "\${TEAM_PANES[\$i]}" "# チーム\$team_letter: 実装フェーズ開始" C-m
-        tmux send-keys -t "\${TEAM_PANES[\$i]}" "# タスク割り当てを待機してください" C-m
+        tmux send-keys -t "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 実装フェーズ開始。タスク割り当てを待機してください。" C-m
     done
 }
 
@@ -180,9 +185,10 @@ task-assign() {
     local team_letter=\$(printf "\x\$(printf %x \$((65 + team_num)))")
     echo "[MANAGER] チーム\$team_letter にタスク割り当て: \$task_desc"
     
-    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "# タスク: \$task_desc" C-m
-    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "# ブランチ: feature/\$branch_name" C-m
-    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "git checkout -b feature/\$branch_name" C-m
+    # 開発チームに指示を送信
+    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "タスク: \$task_desc" C-m
+    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "ブランチ: feature/\$branch_name で作業してください。" C-m
+    tmux send-keys -t "\${TEAM_PANES[\$team_num]}" "git checkout -b feature/\$branch_name を実行して開始してください。" C-m
 }
 
 # QAチェック依頼
@@ -197,8 +203,9 @@ qa-check() {
     
     echo "[MANAGER] QAチェック依頼: チーム\$team_letter - \$branch_name"
     
-    tmux send-keys -t "$QA_PANE" "# QAチェック依頼" C-m
-    tmux send-keys -t "$QA_PANE" "# チーム\$team_letter: feature/\$branch_name" C-m
+    # QAチームに指示を送信
+    tmux send-keys -t "$QA_PANE" "QAチェック依頼: チーム\$team_letter のブランチ feature/\$branch_name をテストしてください。" C-m
+    tmux send-keys -t "$QA_PANE" "品質チェックを実施し、結果をdocs/tests/に記録してください。" C-m
 }
 
 # ナレッジインポート
@@ -214,9 +221,10 @@ import-knowledge() {
     echo "[MANAGER] ナレッジインポート: \$desc"
     echo "URL: \$url"
     
-    tmux send-keys -t "$QA_PANE" "# ナレッジインポート: \$desc" C-m
-    tmux send-keys -t "$QA_PANE" "# URL: \$url" C-m
-    tmux send-keys -t "$QA_PANE" "# docs/knowledge/に保存してください" C-m
+    # QAチームに指示を送信
+    tmux send-keys -t "$QA_PANE" "ナレッジインポート: \$desc" C-m
+    tmux send-keys -t "$QA_PANE" "URL: \$url の内容を分析して、プロジェクトに関連する重要な情報を抽出してください。" C-m
+    tmux send-keys -t "$QA_PANE" "分析結果をdocs/knowledge/に保存してください。" C-m
 }
 
 # ステータス確認
@@ -232,11 +240,11 @@ status() {
 progress() {
     echo "[MANAGER] 全チーム進捗確認"
     
-    tmux send-keys -t "$QA_PANE" "# 進捗報告をお願いします" C-m
+    tmux send-keys -t "$QA_PANE" "現在の進捗状況を報告してください。" C-m
     
     for i in \${!TEAM_PANES[@]}; do
         local team_letter=\$(printf "\x\$(printf %x \$((65 + i)))")
-        tmux send-keys -t "\${TEAM_PANES[\$i]}" "# チーム\$team_letter: 進捗報告をお願いします" C-m
+        tmux send-keys -t "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 現在の進捗状況を報告してください。" C-m
     done
 }
 
@@ -270,8 +278,20 @@ exit-project() {
 alias st='status'
 alias pg='progress'
 
+# Claude起動補助
+start-claude() {
+    echo "🚀 全ペインでClaudeを起動します..."
+    tmux send-keys -t "$QA_PANE" "claude" C-m
+    for pane in \${TEAM_PANES[@]}; do
+        tmux send-keys -t "\$pane" "claude" C-m
+    done
+    echo "✅ 起動コマンドを送信しました"
+}
+
 echo "🎯 Claude Pro Dev 準備完了！"
 echo "helpでコマンド一覧を表示"
+echo ""
+echo "💡 ヒント: start-claude で全ペインでClaudeを起動"
 EOF
 
 # バナー作成

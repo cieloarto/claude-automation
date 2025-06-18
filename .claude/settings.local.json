@@ -9,7 +9,9 @@
       "Bash(tmux list-sessions:*)",
       "Bash(source:*)",
       "Bash(find:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(./claude-pro-dev.sh:*)",
+      "Bash(tmux kill-session:*)"
     ],
     "deny": []
   }
