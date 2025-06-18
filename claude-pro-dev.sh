@@ -271,31 +271,40 @@ exit-project() {
 alias st='status'
 alias pg='progress'
 
-# Claudeにメッセージを送信（シンプル版）
+# Claudeにメッセージを送信（直接送信）
 send_to_claude() {
     local pane_id="\$1"
     local message="\$2"
     
-    # 現在のアプローチ: メッセージをコメントとして送信
-    # ユーザーがClaudeを手動で起動する必要がある
-    tmux send-keys -t "\$pane_id" "# \$message" C-m
+    # メッセージを直接送信（Claudeが起動していることを前提）
+    tmux send-keys -t "\$pane_id" "\$message" C-m
 }
 
-# Claude起動コマンド
+# Claude起動コマンド（順番に起動）
 start-claude() {
-    echo "🚀 全ペインでClaudeを起動します..."
+    echo "🚀 Claudeを順番に起動します..."
+    echo "※ 初期設定画面が表示された場合は、各ペインでEnterを押してください"
     
     # QAペイン
+    echo "→ QAペインでClaude起動中..."
     tmux send-keys -t "$QA_PANE" "claude" C-m
+    sleep 2
     
-    # 開発チーム
+    # 開発チーム（1つずつ起動）
+    local i=0
     for pane in \${TEAM_PANES[@]}; do
-        sleep 0.2
+        local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
+        echo "→ チーム\$team_letter でClaude起動中..."
         tmux send-keys -t "\$pane" "claude" C-m
+        sleep 1
+        ((i++))
     done
     
-    echo "✅ Claude起動完了"
-    echo "※ 各ペインでClaudeプロンプトが表示されるまで待ってください"
+    echo "✅ 起動コマンド送信完了"
+    echo ""
+    echo "💡 ヒント："
+    echo "- 初期設定画面が表示された場合: 各ペインでEnterを押す"
+    echo "- Ctrl+b → 矢印キーでペイン間を移動"
 }
 
 echo "🎯 Claude Pro Dev 準備完了！"
