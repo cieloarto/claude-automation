@@ -1,609 +1,174 @@
 #!/bin/bash
 
-# Claude プロフェッショナル開発環境 - 修正版
-# 使用方法: ./claude-pro-dev-fixed.sh [プロジェクト名] [チーム数] [作業ディレクトリ]
-
-PROJECT_NAME=${1:-"my-project"}
-TEAM_COUNT=${2:-4}
-WORKSPACE_DIR=${3:-"$(pwd)/projects"}
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Claude プロフェッショナル開発環境
 SESSION_NAME="claude-pro-dev"
+WORK_DIR="$(pwd)/projects"
 
 # ターミナルクリア
 clear && printf '\033[3J'
 
-echo "🏢 Claude プロフェッショナル開発環境セットアップ開始..."
-echo "プロジェクト: $PROJECT_NAME"
-echo "開発チーム数: $TEAM_COUNT"
-echo "作業ディレクトリ: $WORKSPACE_DIR"
+echo "🏢 Claude プロフェッショナル開発環境セットアップ中..."
 
-# 既存セッションチェック
-if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-    echo "⚠️  セッション '$SESSION_NAME' は既に存在します。"
-    read -p "削除して再作成しますか？ (y/n): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        tmux kill-session -t "$SESSION_NAME"
-    else
-        echo "既存セッションにアタッチします..."
-        tmux attach-session -t "$SESSION_NAME"
-        exit 0
-    fi
-fi
+# 既存セッション削除
+tmux kill-session -t "$SESSION_NAME" 2>/dev/null
 
-# 作業ディレクトリとドキュメント構造を作成
-mkdir -p "$WORKSPACE_DIR"
-mkdir -p "$WORKSPACE_DIR/docs"/{requirements,design,tasks,tests,knowledge}
+# 作業ディレクトリ作成
+mkdir -p "$WORK_DIR"
+mkdir -p "$WORK_DIR/docs"/{requirements,design,tasks,tests,knowledge}
 
-# プロンプト設定スクリプト作成
-cat > "$WORKSPACE_DIR/.setup-manager.sh" << 'EOF'
-# シンプルなプロンプト設定
+# tmuxセッション作成
+tmux new-session -d -s "$SESSION_NAME" -c "$WORK_DIR"
+
+# 正しい6ペイン構成（3x2グリッド）
+# まず垂直に3分割
+tmux split-window -h -t "$SESSION_NAME:0" -p 66  # 残り66%を分割
+tmux split-window -h -t "$SESSION_NAME:0.1" -p 50  # 残り50%を分割
+
+# 各列を水平に2分割
+tmux select-pane -t "$SESSION_NAME:0.0"
+tmux split-window -v -t "$SESSION_NAME:0.0" -p 70  # マネージャーは小さめ
+
+tmux select-pane -t "$SESSION_NAME:0.2"
+tmux split-window -v -t "$SESSION_NAME:0.2" -p 50
+
+tmux select-pane -t "$SESSION_NAME:0.4"
+tmux split-window -v -t "$SESSION_NAME:0.4" -p 50
+
+# プロンプト設定
+cat > "$WORK_DIR/.setup-manager.sh" << 'EOF'
 export PS1='PM> '
 EOF
 
-cat > "$WORKSPACE_DIR/.setup-qa.sh" << 'EOF'
-# シンプルなプロンプト設定
+cat > "$WORK_DIR/.setup-qa.sh" << 'EOF'
 export PS1='QA> '
 EOF
 
-# tmuxセッション作成（history-limit設定付き）
-tmux new-session -d -s "$SESSION_NAME" -c "$WORKSPACE_DIR"
-tmux set-option -t "$SESSION_NAME" -g history-limit 2000
-tmux set-option -t "$SESSION_NAME" -g status on
-tmux set-option -t "$SESSION_NAME" -g status-position bottom
-
-# 横3列のレイアウトを作成
-# まず2つの縦分割を作成（3列にする）
-tmux split-window -h -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
-tmux split-window -h -t "$SESSION_NAME:0.1" -c "$WORKSPACE_DIR"
-
-# 左列をさらに横に分割（上：マネージャー、下：QA）
-tmux select-pane -t 0
-tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
-
-# 中央列を横に分割（上：チームA、下：チームB）
-tmux select-pane -t 2
-tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
-
-# 右列を横に分割（上：チームC、下：チームD）
-tmux select-pane -t 4
-tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
-
-# レイアウト調整：tiled layoutを適用してから調整
-tmux select-layout -t "$SESSION_NAME" tiled
-sleep 0.5
-
-# 左列の幅を設定（マネージャーとQA）
-tmux select-pane -t "$SESSION_NAME:0.0"
-tmux resize-pane -x 60
-
-# マネージャーペインの高さを調整
-tmux select-pane -t "$SESSION_NAME:0.0"
-tmux resize-pane -y 12
-
-# 残りのペインを均等に配置
-tmux select-layout -t "$SESSION_NAME" main-vertical
-tmux select-pane -t "$SESSION_NAME:0.0"
-
-# ペイン情報取得
-PANE_INFO=$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_index}:#{pane_id}")
-declare -a PANE_IDS
-while IFS=':' read -r index id; do
-    PANE_IDS[$index]="$id"
-done <<<"$PANE_INFO"
-
-# 横3列レイアウトのペイン割り当て
-# 左列：0=マネージャー、1=QA
-# 中央列：2=チームA、3=チームB
-# 右列：4=チームC、5=チームD
-MANAGER_PANE="${PANE_IDS[0]}"
-QA_PANE="${PANE_IDS[1]}"
-TEAM_PANES=(
-    "${PANE_IDS[2]}"  # チームA
-    "${PANE_IDS[3]}"  # チームB
-    "${PANE_IDS[4]}"  # チームC
-    "${PANE_IDS[5]}"  # チームD
-)
-
-# コマンドスクリプト作成
-cat > "$WORKSPACE_DIR/.commands.sh" << EOF
-#!/bin/bash
-# Claude Pro Dev コマンド
-
-export MANAGER_PANE="$MANAGER_PANE"
-export QA_PANE="$QA_PANE"
-export TEAM_PANES=(${TEAM_PANES[*]})
-export WORKSPACE_DIR="$WORKSPACE_DIR"
-export SCRIPT_DIR="$SCRIPT_DIR"
-export SESSION_NAME="$SESSION_NAME"
-export PROJECT_NAME="$PROJECT_NAME"
-export DEVELOPMENT_PHASE="requirements"
-
-# プロジェクト状態を保存
-save_project_state() {
-    local phase="\$1"
-    local details="\$2"
-    local state_file="\$WORKSPACE_DIR/.project_state"
-    
-    {
-        echo "PROJECT_NAME=\$PROJECT_NAME"
-        echo "DEVELOPMENT_PHASE=\$phase"
-        echo "LAST_UPDATE=\$(date)"
-        echo "DETAILS=\$details"
-    } > "\$state_file"
-}
-
-# プロジェクト状態を読み込み
-load_project_state() {
-    local state_file="\$WORKSPACE_DIR/.project_state"
-    
-    if [ -f "\$state_file" ]; then
-        source "\$state_file"
-        echo "📋 前回の状態を復元しました:"
-        echo "  プロジェクト: \$PROJECT_NAME"
-        echo "  フェーズ: \$DEVELOPMENT_PHASE"
-        echo "  最終更新: \$LAST_UPDATE"
-        echo ""
-        echo "💡 ヒント: resume で前回の続きから再開"
-        return 0
-    else
-        echo "❌ 保存された状態が見つかりません"
-        return 1
-    fi
-}
-
-# 作業を再開
-resume() {
-    if load_project_state; then
-        echo "🔄 作業を再開します..."
-        
-        case "\$DEVELOPMENT_PHASE" in
-            "requirements")
-                echo "→ 要件定義フェーズから再開"
-                echo "→ docs/requirements/ を確認してください"
-                ;;
-            "design")
-                echo "→ 設計フェーズから再開"
-                echo "→ docs/design/ を確認してください"
-                ;;
-            "implementation")
-                echo "→ 実装フェーズから再開"
-                echo "→ 各チームの成果物を確認してください"
-                # 各チームに状況確認を送信
-                progress
-                ;;
-            *)
-                echo "→ 不明なフェーズ: \$DEVELOPMENT_PHASE"
-                ;;
-        esac
-    fi
-}
-
-# ヘルプ関数
+# コマンドスクリプト
+cat > "$WORK_DIR/.commands.sh" << 'EOF'
 help() {
-    echo "📚 Claude Pro Dev - 利用可能なコマンド"
+    echo "📚 Claude Pro Dev - コマンド一覧"
     echo ""
-    echo "【初期設定】"
-    echo "  start-claude - 全ペインでClaudeを起動（最初に実行）"
+    echo "【Claude管理】"
+    echo "  claude-all           - 全ペインでClaude起動"
     echo ""
     echo "【開発フェーズ】"
-    echo "  requirements '<説明>'     - 要件定義フェーズ開始"
-    echo "  design                   - 設計フェーズ開始"
-    echo "  implementation           - 実装フェーズ開始"
-    echo "  integration-test         - 統合テストフェーズ"
-    echo ""
-    echo "【タスク管理】"
-    echo "  task-assign <番号> '<説明>' '<ブランチ>' - タスク割り当て"
-    echo "  qa-check <チーム> '<ブランチ>'          - QAチェック依頼"
-    echo ""
-    echo "【ナレッジ管理】"
-    echo "  import-knowledge '<URL>' '<説明>' - 外部知識をインポート"
+    echo "  requirements '<説明>' - 要件定義開始"
+    echo "  design               - 設計フェーズ"
+    echo "  implementation       - 実装フェーズ"
     echo ""
     echo "【その他】"
-    echo "  status       - プロジェクト状況確認"
-    echo "  progress     - 進捗確認"
-    echo "  resume       - 前回の続きから再開"
-    echo "  clear-all    - 全ペインクリア"
-    echo "  exit-project - プロジェクト終了"
+    echo "  clear-all            - 全ペインクリア"
+    echo "  exit-project         - 終了"
 }
 
-# 要件定義フェーズ
+claude-all() {
+    echo "🚀 各ペインでClaudeを起動します..."
+    # QAペイン
+    tmux send-keys -t "claude-pro-dev:0.1" "claude" C-m
+    # 開発チーム
+    for i in {2..5}; do
+        tmux send-keys -t "claude-pro-dev:0.$i" "claude" C-m
+    done
+}
+
 requirements() {
-    local project_desc="\$1"
-    if [ -z "\$project_desc" ]; then
-        echo "使用方法: requirements '<プロジェクト説明>'"
-        return 1
-    fi
-    
-    export DEVELOPMENT_PHASE="requirements"
-    echo "[MANAGER] 要件定義フェーズを開始: \$project_desc"
-    
-    # 状態を保存
-    save_project_state "requirements" "\$project_desc"
-    
-    # QAペインでClaudeに指示を送信
-    send_to_claude "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。以下の形式でdocs/requirements/requirements.mdに保存してください：1. プロジェクト概要、2. 機能要件、3. 非機能要件、4. 制約事項"
+    local desc="$1"
+    echo "[MANAGER] 要件定義: $desc"
+    tmux send-keys -t "claude-pro-dev:0.1" "プロジェクト『$desc』の要件定義書を作成してください" C-m
 }
 
-# 設計フェーズ
 design() {
-    export DEVELOPMENT_PHASE="design"
-    echo "[MANAGER] 設計フェーズを開始"
-    
-    # 状態を保存
-    save_project_state "design" "設計フェーズ"
-    
-    # QAペインでClaudeに指示を送信
-    send_to_claude "$QA_PANE" "要件定義書を基に、以下の設計書を作成してください：1. docs/design/architecture.md - システムアーキテクチャ設計、2. docs/design/database.md - データベース設計（必要な場合）、3. docs/tasks/task-breakdown.md - タスク分解"
+    echo "[MANAGER] 設計フェーズ開始"
+    tmux send-keys -t "claude-pro-dev:0.1" "設計書を作成してください" C-m
 }
 
-# 実装フェーズ
 implementation() {
-    export DEVELOPMENT_PHASE="implementation"
-    echo "[MANAGER] 実装フェーズを開始"
-    echo "→ タスクを自動的に各チームに割り当てます"
-    
-    # 状態を保存
-    save_project_state "implementation" "実装フェーズ"
-    
-    # 各開発チームに自動的にタスクを割り当て
-    local tasks=(
-        "Next.jsプロジェクトのセットアップと基本構成を実装してください。package.json、tsconfig.json、next.config.jsなどの初期設定を含めてください。"
-        "共通レイアウトコンポーネントとナビゲーションを実装してください。ヘッダー、フッター、サイドバーなどの基本UIコンポーネントを作成してください。"
-        "ホームページとメインのページコンポーネントを実装してください。ルーティング設定も含めて実装してください。"
-        "APIルートとデータ取得ロジックを実装してください。必要に応じてモックデータも作成してください。"
-    )
-    
-    local i=0
-    for pane in \${TEAM_PANES[@]}; do
-        local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
-        if [ \$i -lt \${#tasks[@]} ]; then
-            send_to_claude "\$pane" "チーム\$team_letter: \${tasks[\$i]}"
-            echo "  → チーム\$team_letter: タスク\$((i+1))を割り当て"
-        else
-            send_to_claude "\$pane" "チーム\$team_letter: 他のチームのサポートとコードレビューを担当してください。"
-            echo "  → チーム\$team_letter: サポート役を割り当て"
-        fi
-        ((i++))
+    echo "[MANAGER] 実装フェーズ開始"
+    local teams=(A B C D)
+    for i in {0..3}; do
+        local pane=$((i + 2))
+        tmux send-keys -t "claude-pro-dev:0.$pane" "チーム${teams[$i]}: 実装を開始してください" C-m
     done
-    
-    echo ""
-    echo "✅ タスク割り当て完了"
 }
 
-# タスク割り当て
-task-assign() {
-    local team_num="\$1"
-    local task_desc="\$2"
-    local branch_name="\$3"
-    
-    if [ -z "\$team_num" ] || [ -z "\$task_desc" ] || [ -z "\$branch_name" ]; then
-        echo "使用方法: task-assign <チーム番号> '<タスク説明>' '<ブランチ名>'"
-        return 1
-    fi
-    
-    if [ "\$team_num" -ge "\${#TEAM_PANES[@]}" ]; then
-        echo "エラー: チーム番号が範囲外です"
-        return 1
-    fi
-    
-    local team_letter=\$(printf "\x\$(printf %x \$((65 + team_num)))")
-    echo "[MANAGER] チーム\$team_letter にタスク割り当て: \$task_desc"
-    
-    # 開発チームに指示を送信
-    send_to_claude "\${TEAM_PANES[\$team_num]}" "タスク: \$task_desc\nブランチ: feature/\$branch_name で作業してください。\ngit checkout -b feature/\$branch_name を実行して開始してください。"
-}
-
-# QAチェック依頼
-qa-check() {
-    local team_letter="\$1"
-    local branch_name="\$2"
-    
-    if [ -z "\$team_letter" ] || [ -z "\$branch_name" ]; then
-        echo "使用方法: qa-check <チーム文字> '<ブランチ名>'"
-        return 1
-    fi
-    
-    echo "[MANAGER] QAチェック依頼: チーム\$team_letter - \$branch_name"
-    
-    # QAチームに指示を送信
-    send_to_claude "$QA_PANE" "QAチェック依頼: チーム\$team_letter のブランチ feature/\$branch_name をテストしてください。\n品質チェックを実施し、結果をdocs/tests/に記録してください。"
-}
-
-# ナレッジインポート
-import-knowledge() {
-    local url="\$1"
-    local desc="\$2"
-    
-    if [ -z "\$url" ]; then
-        echo "使用方法: import-knowledge '<URL>' '<説明>'"
-        return 1
-    fi
-    
-    echo "[MANAGER] ナレッジインポート: \$desc"
-    echo "URL: \$url"
-    
-    # QAチームに指示を送信
-    send_to_claude "$QA_PANE" "ナレッジインポート: \$desc\nURL: \$url の内容を分析して、プロジェクトに関連する重要な情報を抽出してください。\n分析結果をdocs/knowledge/に保存してください。"
-}
-
-# ステータス確認
-status() {
-    echo "📊 プロジェクトステータス"
-    echo "  プロジェクト名: \$PROJECT_NAME"
-    echo "  現在のフェーズ: \$DEVELOPMENT_PHASE"
-    echo "  作業ディレクトリ: \$WORKSPACE_DIR"
-    echo "  開発チーム数: ${#TEAM_PANES[@]}"
-}
-
-# 進捗確認（シンプル版）
-progress() {
-    echo "[MANAGER] 全チーム進捗確認"
-    echo "→ 各チームに進捗報告を依頼しました"
-    
-    # QAペインに送信
-    send_to_claude "$QA_PANE" "現在の進捗状況を報告してください。"
-    
-    # 各開発チームに送信
-    local num_teams=\$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_id}" | wc -l)
-    num_teams=\$((num_teams - 2))  # マネージャーとQAを除く
-    
-    for i in \$(seq 0 \$((num_teams - 1))); do
-        local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
-        local pane_id="\${TEAM_PANES[\$i]}"
-        if [ -n "\$pane_id" ]; then
-            send_to_claude "\$pane_id" "チーム\$team_letter: 現在の進捗状況を報告してください。"
-        fi
-    done
-    
-    echo ""
-    echo "💡 各ペインで報告を確認: Ctrl+b → 矢印キー"
-}
-
-# 進捗報告の確認
-check-progress() {
-    local report_dir="\$WORKSPACE_DIR/reports/progress"
-    
-    if [ ! -d "\$report_dir" ]; then
-        echo "❌ 進捗報告がまだありません"
-        return 1
-    fi
-    
-    echo "📊 進捗報告の状況:"
-    echo ""
-    
-    # QAチームの報告確認
-    if ls "\$report_dir"/qa_*.txt 1> /dev/null 2>&1; then
-        echo "✅ QAチーム: 報告済み"
-    else
-        echo "⏳ QAチーム: 報告待ち"
-    fi
-    
-    # 各開発チームの報告確認
-    for letter in A B C D; do
-        if ls "\$report_dir"/team\${letter}_*.txt 1> /dev/null 2>&1; then
-            echo "✅ チーム\$letter: 報告済み"
-        else
-            echo "⏳ チーム\$letter: 報告待ち"
-        fi
-    done
-    
-    echo ""
-    
-    # 全員の報告が揃ったか確認
-    local total_files=\$(ls "\$report_dir"/*.txt 2>/dev/null | wc -l)
-    local expected_files=\$((1 + \${#TEAM_PANES[@]}))  # QA + 開発チーム数
-    
-    if [ "\$total_files" -ge "\$expected_files" ]; then
-        echo "🎉 全チームの報告が揃いました！"
-        echo ""
-        echo "使用可能なコマンド:"
-        echo "  summary-progress - 進捗サマリーを生成"
-    fi
-}
-
-# 進捗サマリーの生成
-summary-progress() {
-    local report_dir="\$WORKSPACE_DIR/reports/progress"
-    
-    if [ ! -d "\$report_dir" ]; then
-        echo "❌ 進捗報告がありません"
-        return 1
-    fi
-    
-    echo "📋 進捗サマリー"
-    echo "=================="
-    echo ""
-    
-    # QAチームの報告
-    if ls "\$report_dir"/qa_*.txt 1> /dev/null 2>&1; then
-        echo "【QAチーム】"
-        cat "\$report_dir"/qa_*.txt | head -n 10
-        echo ""
-    fi
-    
-    # 各開発チームの報告
-    for letter in A B C D; do
-        if ls "\$report_dir"/team\${letter}_*.txt 1> /dev/null 2>&1; then
-            echo "【チーム\$letter】"
-            cat "\$report_dir"/team\${letter}_*.txt | head -n 10
-            echo ""
-        fi
-    done
-    
-    # サマリーファイルに保存
-    local summary_file="\$WORKSPACE_DIR/reports/progress_summary_\$(date +%Y%m%d_%H%M%S).md"
-    {
-        echo "# 進捗報告サマリー"
-        echo "日時: \$(date)"
-        echo ""
-        
-        if ls "\$report_dir"/qa_*.txt 1> /dev/null 2>&1; then
-            echo "## QAチーム"
-            cat "\$report_dir"/qa_*.txt
-            echo ""
-        fi
-        
-        for letter in A B C D; do
-            if ls "\$report_dir"/team\${letter}_*.txt 1> /dev/null 2>&1; then
-                echo "## チーム\$letter"
-                cat "\$report_dir"/team\${letter}_*.txt
-                echo ""
-            fi
-        done
-    } > "\$summary_file"
-    
-    echo ""
-    echo "✅ サマリーを保存しました: \$summary_file"
-}
-
-# 全ペインクリア
 clear-all() {
-    for pane in "$MANAGER_PANE" "$QA_PANE" \${TEAM_PANES[@]}; do
-        tmux send-keys -t "\$pane" "clear" C-m
+    for i in {0..5}; do
+        tmux send-keys -t "claude-pro-dev:0.$i" "clear" C-m
     done
-    echo "✅ 全ペインをクリアしました"
 }
 
-# プロジェクト終了
 exit-project() {
-    echo "🧹 プロジェクトを終了しています..."
-    
-    # 各ペインでexitを送信
-    for pane in "$QA_PANE" \${TEAM_PANES[@]}; do
-        tmux send-keys -t "\$pane" C-c 2>/dev/null
-        sleep 0.2
-        tmux send-keys -t "\$pane" "exit" C-m 2>/dev/null
-    done
-    
-    sleep 1
-    tmux kill-session -t "$SESSION_NAME" 2>/dev/null
-    
-    echo "✅ プロジェクト終了"
+    tmux kill-session -t "claude-pro-dev"
     exit 0
 }
-
-# エイリアス
-alias st='status'
-alias pg='progress'
-
-# Claudeにメッセージを送信（エスケープ対応版）
-send_to_claude() {
-    local pane_id="\$1"
-    local message="\$2"
-    
-    # メッセージをエスケープして送信
-    tmux send-keys -t "\$pane_id" -l "\$message"
-    tmux send-keys -t "\$pane_id" C-m
-}
-
-# Claude起動コマンド（シンプル版）
-start-claude() {
-    echo "🚀 全ペインでClaudeを起動します..."
-    
-    # 全ペインで同時にclaudeを起動
-    tmux send-keys -t "$QA_PANE" "claude" C-m
-    for pane in \${TEAM_PANES[@]}; do
-        tmux send-keys -t "\$pane" "claude" C-m
-    done
-    
-    echo "✅ Claude起動完了"
-}
-
-echo "🎯 Claude Pro Dev 準備完了！"
-echo "helpでコマンド一覧を表示"
-echo ""
-echo "💡 ヒント: start-claude で全ペインでClaudeを起動"
 EOF
 
 # バナー作成
-cat > "$WORKSPACE_DIR/banner-manager.txt" << 'EOF'
+cat > "$WORK_DIR/banner-manager.txt" << 'EOF'
 ╔════════════════════════════════════╗
 ║  プロジェクトマネージャー          ║
 ╚════════════════════════════════════╝
-
 コマンド: help
 EOF
 
-cat > "$WORKSPACE_DIR/banner-qa.txt" << 'EOF'
+cat > "$WORK_DIR/banner-qa.txt" << 'EOF'
 ╔════════════════════════════════════╗
 ║    QA & テストチーム               ║
 ╚════════════════════════════════════╝
-
-準備完了
 EOF
 
-# 以前の状態をチェック
-if [ -f "$WORKSPACE_DIR/.project_state" ]; then
-    echo ""
-    echo "📋 保存されたプロジェクト状態が見つかりました"
-    echo "   マネージャーペインで 'resume' を実行して再開できます"
-fi
+# 各ペインの初期化
+# マネージャー (左上)
+tmux send-keys -t "$SESSION_NAME:0.0" "cd $WORK_DIR && source .setup-manager.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
 
-# 各ペインでセットアップ
-# マネージャー
-tmux send-keys -t "$MANAGER_PANE" "source .setup-manager.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
+# QA (左下)
+tmux send-keys -t "$SESSION_NAME:0.1" "cd $WORK_DIR && source .setup-qa.sh && clear && cat banner-qa.txt" C-m
 
-# QA - セットアップ
-tmux send-keys -t "$QA_PANE" "source .setup-qa.sh && clear && cat banner-qa.txt && export PS1='QA> '" C-m
-
-# 開発チーム
-for i in ${!TEAM_PANES[@]}; do
-    team_letter=$(printf "\x$(printf %x $((65 + i)))")
+# 開発チーム (中央上下、右上下)
+for i in {2..5}; do
+    team_letter=$(printf "\x$(printf %x $((65 + i - 2)))")
     
-    cat > "$WORKSPACE_DIR/.setup-team-$i.sh" << EOF
-# シンプルなプロンプト設定
+    cat > "$WORK_DIR/.setup-team-$i.sh" << EOF
 export PS1='T$team_letter> '
 EOF
 
-    # バナーファイル作成（文字化け対策）
-    echo "╔════════════════════════════════════╗" > "$WORKSPACE_DIR/banner-team-$i.txt"
-    echo "║       開発チーム $team_letter              ║" >> "$WORKSPACE_DIR/banner-team-$i.txt"
-    echo "╚════════════════════════════════════╝" >> "$WORKSPACE_DIR/banner-team-$i.txt"
-    echo "" >> "$WORKSPACE_DIR/banner-team-$i.txt"
-    echo "準備完了" >> "$WORKSPACE_DIR/banner-team-$i.txt"
+    cat > "$WORK_DIR/banner-team-$i.txt" << EOF
+╔════════════════════════════════╗
+║       開発チーム $team_letter              ║
+╚════════════════════════════════════╝
+EOF
 
-    tmux send-keys -t "${TEAM_PANES[$i]}" "source .setup-team-$i.sh && clear && cat banner-team-$i.txt && export PS1='T$team_letter> '" C-m
+    tmux send-keys -t "$SESSION_NAME:0.$i" "cd $WORK_DIR && source .setup-team-$i.sh && clear && cat banner-team-$i.txt" C-m
 done
 
-# Claude起動待機
-echo ""
-echo "⏳ 初期化中..."
-sleep 2
-
-# Claudeの設定ファイルを作成（初期設定をスキップ）
-mkdir -p ~/.config/claude
-if [ ! -f ~/.config/claude/config.json ]; then
-    echo '{"theme":"dark","analytics":false}' > ~/.config/claude/config.json
-fi
-
-# 環境変数を設定
-export CLAUDE_SKIP_SETUP=true
-export CLAUDE_THEME=dark
-export CLAUDE_SKIP_ONBOARDING=true
-
-# 自動でClaude起動（危険なフラグなし）
-echo "🚀 Claudeを自動起動中..."
-tmux send-keys -t "$QA_PANE" "claude" C-m
-for i in ${!TEAM_PANES[@]}; do
-    tmux send-keys -t "${TEAM_PANES[$i]}" "claude" C-m
-done
-
-sleep 3
+# 自動でClaude起動（遅延実行）
+{
+    sleep 3
+    echo "🚀 Claudeを自動起動中..."
+    
+    # QAペイン
+    tmux send-keys -t "$SESSION_NAME:0.1" "claude" C-m
+    
+    # 開発チーム
+    for i in {2..5}; do
+        tmux send-keys -t "$SESSION_NAME:0.$i" "claude" C-m
+        sleep 0.5
+    done
+} &
 
 echo ""
-echo "🎉 セットアップ完了！"
+echo "✅ セットアップ完了！"
 echo ""
-echo "📋 使用可能なコマンド:"
-echo "   - requirements '<プロジェクト説明>'"
-echo "   - design"
-echo "   - implementation"
+echo "📋 レイアウト:"
+echo "  [マネージャー] [チームA] [チームC]"
+echo "  [QAチーム   ] [チームB] [チームD]"
 echo ""
-echo "※ Claudeが自動起動されています（初回は設定画面が表示される場合があります）"
+echo "💡 使い方:"
+echo "  - マネージャーペインで 'help' でコマンド確認"
+echo "  - 'requirements プロジェクト名' で開始"
 echo ""
-echo "アタッチ中..."
-sleep 1
+echo "※ 3秒後にClaudeが自動起動します"
+echo ""
 
 # アタッチ
-clear && printf '\033[3J'
 tmux attach-session -t "$SESSION_NAME"

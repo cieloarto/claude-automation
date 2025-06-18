@@ -1,2 +1,1 @@
-# シンプルなプロンプト設定
-export PS1='TC> '
+export PS1='TA> '
