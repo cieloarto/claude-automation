@@ -162,6 +162,7 @@ assign-task-to-team() {
         TEAM_CURRENT_TASK[$team]="$task"
         
         echo "📌 チーム$team に割り当て: $task"
+        sleep 1
         tmux send-keys -t "claude-pro-dev:0.$pane" "チーム$team: $task を実装してください。完了後'team-done $team'実行。" C-m
         
         ((TASK_INDEX++))
@@ -454,7 +455,7 @@ done
 
 # 自動でClaude起動（遅延実行）
 {
-    sleep 3
+    sleep 5
     echo "🚀 Claudeを自動起動中..."
     
     # QAペイン
