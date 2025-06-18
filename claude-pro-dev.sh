@@ -49,26 +49,35 @@ EOF
 # tmuxセッション作成
 tmux new-session -d -s "$SESSION_NAME" -c "$WORKSPACE_DIR"
 
-# 画面分割：まず縦に分割（左：マネージャー＆QA、右：開発チーム）
+# 横3列のレイアウトを作成
+# まず2つの縦分割を作成（3列にする）
 tmux split-window -h -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
+tmux split-window -h -t "$SESSION_NAME:0.1" -c "$WORKSPACE_DIR"
 
-# 左側をさらに横に分割（上：マネージャー、下：QA）
+# 左列をさらに横に分割（上：マネージャー、下：QA）
 tmux select-pane -t 0
 tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
 
-# 右側に開発チーム用ペイン作成
+# 中央列を横に分割（上：チームA、下：チームB）
 tmux select-pane -t 2
-for ((i = 1; i < TEAM_COUNT; i++)); do
-    tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
-done
+tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
 
-# レイアウト調整：左側を狭く、右側を広く
+# 右列を横に分割（上：チームC、下：チームD）
+tmux select-pane -t 4
+tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
+
+# レイアウト調整：各列の幅を調整
 tmux select-pane -t 0
-tmux resize-pane -x 60  # 左側の幅を60文字に設定
+tmux resize-pane -x 50  # 左列の幅を50文字に設定
 
-# 左側の上下分割の比率調整（マネージャーを小さく）
+# 左列の上下分割の比率調整（マネージャーを小さく）
 tmux select-pane -t 0
 tmux resize-pane -y 10  # マネージャーペインの高さを10行に設定
+
+# 中央列と右列の幅を均等に
+tmux select-layout even-horizontal
+tmux select-pane -t 0
+tmux resize-pane -x 50  # 左列の幅を再調整
 
 # ペイン情報取得
 PANE_INFO=$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_index}:#{pane_id}")
@@ -77,12 +86,18 @@ while IFS=':' read -r index id; do
     PANE_IDS[$index]="$id"
 done <<<"$PANE_INFO"
 
+# 横3列レイアウトのペイン割り当て
+# 左列：0=マネージャー、1=QA
+# 中央列：2=チームA、3=チームB
+# 右列：4=チームC、5=チームD
 MANAGER_PANE="${PANE_IDS[0]}"
 QA_PANE="${PANE_IDS[1]}"
-TEAM_PANES=()
-for ((i = 2; i < $((2 + TEAM_COUNT)); i++)); do
-    TEAM_PANES+=("${PANE_IDS[$i]}")
-done
+TEAM_PANES=(
+    "${PANE_IDS[2]}"  # チームA
+    "${PANE_IDS[3]}"  # チームB
+    "${PANE_IDS[4]}"  # チームC
+    "${PANE_IDS[5]}"  # チームD
+)
 
 # コマンドスクリプト作成
 cat > "$WORKSPACE_DIR/.commands.sh" << EOF
