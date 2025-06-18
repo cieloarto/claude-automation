@@ -49,20 +49,26 @@ EOF
 # tmuxセッション作成
 tmux new-session -d -s "$SESSION_NAME" -c "$WORKSPACE_DIR"
 
-# 画面分割（マネージャー、QA、開発チーム x N）
+# 画面分割：まず縦に分割（左：マネージャー＆QA、右：開発チーム）
 tmux split-window -h -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
+
+# 左側をさらに横に分割（上：マネージャー、下：QA）
 tmux select-pane -t 0
 tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
-tmux select-pane -t 2
 
-# 追加の開発チーム用ペイン作成
+# 右側に開発チーム用ペイン作成
+tmux select-pane -t 2
 for ((i = 1; i < TEAM_COUNT; i++)); do
     tmux split-window -v -t "$SESSION_NAME" -c "$WORKSPACE_DIR"
 done
 
-# レイアウト調整
-tmux select-layout -t "$SESSION_NAME" main-vertical
+# レイアウト調整：左側を狭く、右側を広く
 tmux select-pane -t 0
+tmux resize-pane -x 60  # 左側の幅を60文字に設定
+
+# 左側の上下分割の比率調整（マネージャーを小さく）
+tmux select-pane -t 0
+tmux resize-pane -y 10  # マネージャーペインの高さを10行に設定
 
 # ペイン情報取得
 PANE_INFO=$(tmux list-panes -t "$SESSION_NAME" -F "#{pane_index}:#{pane_id}")
