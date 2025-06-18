@@ -271,13 +271,14 @@ exit-project() {
 alias st='status'
 alias pg='progress'
 
-# Claudeにメッセージを送信（直接送信）
+# Claudeにメッセージを送信（エスケープ対応版）
 send_to_claude() {
     local pane_id="\$1"
     local message="\$2"
     
-    # メッセージを直接送信（Claudeが起動していることを前提）
-    tmux send-keys -t "\$pane_id" "\$message" C-m
+    # メッセージをエスケープして送信
+    tmux send-keys -t "\$pane_id" -l "\$message"
+    tmux send-keys -t "\$pane_id" C-m
 }
 
 # Claude起動コマンド（シンプル版）
