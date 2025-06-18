@@ -113,6 +113,66 @@ export SESSION_NAME="$SESSION_NAME"
 export PROJECT_NAME="$PROJECT_NAME"
 export DEVELOPMENT_PHASE="requirements"
 
+# プロジェクト状態を保存
+save_project_state() {
+    local phase="\$1"
+    local details="\$2"
+    local state_file="\$WORKSPACE_DIR/.project_state"
+    
+    {
+        echo "PROJECT_NAME=\$PROJECT_NAME"
+        echo "DEVELOPMENT_PHASE=\$phase"
+        echo "LAST_UPDATE=\$(date)"
+        echo "DETAILS=\$details"
+    } > "\$state_file"
+}
+
+# プロジェクト状態を読み込み
+load_project_state() {
+    local state_file="\$WORKSPACE_DIR/.project_state"
+    
+    if [ -f "\$state_file" ]; then
+        source "\$state_file"
+        echo "📋 前回の状態を復元しました:"
+        echo "  プロジェクト: \$PROJECT_NAME"
+        echo "  フェーズ: \$DEVELOPMENT_PHASE"
+        echo "  最終更新: \$LAST_UPDATE"
+        echo ""
+        echo "💡 ヒント: resume で前回の続きから再開"
+        return 0
+    else
+        echo "❌ 保存された状態が見つかりません"
+        return 1
+    fi
+}
+
+# 作業を再開
+resume() {
+    if load_project_state; then
+        echo "🔄 作業を再開します..."
+        
+        case "\$DEVELOPMENT_PHASE" in
+            "requirements")
+                echo "→ 要件定義フェーズから再開"
+                echo "→ docs/requirements/ を確認してください"
+                ;;
+            "design")
+                echo "→ 設計フェーズから再開"
+                echo "→ docs/design/ を確認してください"
+                ;;
+            "implementation")
+                echo "→ 実装フェーズから再開"
+                echo "→ 各チームの成果物を確認してください"
+                # 各チームに状況確認を送信
+                progress
+                ;;
+            *)
+                echo "→ 不明なフェーズ: \$DEVELOPMENT_PHASE"
+                ;;
+        esac
+    fi
+}
+
 # ヘルプ関数
 help() {
     echo "📚 Claude Pro Dev - 利用可能なコマンド"
@@ -136,6 +196,7 @@ help() {
     echo "【その他】"
     echo "  status       - プロジェクト状況確認"
     echo "  progress     - 進捗確認"
+    echo "  resume       - 前回の続きから再開"
     echo "  clear-all    - 全ペインクリア"
     echo "  exit-project - プロジェクト終了"
 }
@@ -151,6 +212,9 @@ requirements() {
     export DEVELOPMENT_PHASE="requirements"
     echo "[MANAGER] 要件定義フェーズを開始: \$project_desc"
     
+    # 状態を保存
+    save_project_state "requirements" "\$project_desc"
+    
     # QAペインでClaudeに指示を送信
     send_to_claude "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。以下の形式でdocs/requirements/requirements.mdに保存してください：1. プロジェクト概要、2. 機能要件、3. 非機能要件、4. 制約事項"
 }
@@ -159,6 +223,9 @@ requirements() {
 design() {
     export DEVELOPMENT_PHASE="design"
     echo "[MANAGER] 設計フェーズを開始"
+    
+    # 状態を保存
+    save_project_state "design" "設計フェーズ"
     
     # QAペインでClaudeに指示を送信
     send_to_claude "$QA_PANE" "要件定義書を基に、以下の設計書を作成してください：1. docs/design/architecture.md - システムアーキテクチャ設計、2. docs/design/database.md - データベース設計（必要な場合）、3. docs/tasks/task-breakdown.md - タスク分解"
@@ -169,6 +236,9 @@ implementation() {
     export DEVELOPMENT_PHASE="implementation"
     echo "[MANAGER] 実装フェーズを開始"
     echo "→ タスクを自動的に各チームに割り当てます"
+    
+    # 状態を保存
+    save_project_state "implementation" "実装フェーズ"
     
     # 各開発チームに自動的にタスクを割り当て
     local tasks=(
@@ -458,6 +528,13 @@ cat > "$WORKSPACE_DIR/banner-qa.txt" << 'EOF'
 準備完了
 EOF
 
+# 以前の状態をチェック
+if [ -f "$WORKSPACE_DIR/.project_state" ]; then
+    echo ""
+    echo "📋 保存されたプロジェクト状態が見つかりました"
+    echo "   マネージャーペインで 'resume' を実行して再開できます"
+fi
+
 # 各ペインでセットアップ
 # マネージャー
 tmux send-keys -t "$MANAGER_PANE" "source .setup-manager.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
@@ -488,6 +565,12 @@ done
 echo ""
 echo "⏳ 初期化中..."
 sleep 2
+
+# Claudeの設定ファイルを作成（初期設定をスキップ）
+mkdir -p ~/.config/claude
+if [ ! -f ~/.config/claude/config.json ]; then
+    echo '{"theme":"dark","analytics":false}' > ~/.config/claude/config.json
+fi
 
 # 自動でClaude起動
 echo "🚀 Claudeを自動起動中..."
