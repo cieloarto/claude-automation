@@ -280,31 +280,18 @@ send_to_claude() {
     tmux send-keys -t "\$pane_id" "\$message" C-m
 }
 
-# Claude起動コマンド（順番に起動）
+# Claude起動コマンド（シンプル版）
 start-claude() {
-    echo "🚀 Claudeを順番に起動します..."
-    echo "※ 初期設定画面が表示された場合は、各ペインでEnterを押してください"
+    echo "🚀 全ペインでClaudeを起動します..."
     
-    # QAペイン
-    echo "→ QAペインでClaude起動中..."
+    # 全ペインで同時にclaudeを起動
     tmux send-keys -t "$QA_PANE" "claude" C-m
-    sleep 2
-    
-    # 開発チーム（1つずつ起動）
-    local i=0
     for pane in \${TEAM_PANES[@]}; do
-        local team_letter=\$(printf "\\x\$(printf %x \$((65 + i)))")
-        echo "→ チーム\$team_letter でClaude起動中..."
         tmux send-keys -t "\$pane" "claude" C-m
-        sleep 1
-        ((i++))
     done
     
-    echo "✅ 起動コマンド送信完了"
-    echo ""
-    echo "💡 ヒント："
-    echo "- 初期設定画面が表示された場合: 各ペインでEnterを押す"
-    echo "- Ctrl+b → 矢印キーでペイン間を移動"
+    echo "✅ Claude起動完了"
+    echo "※ 初回起動時のみ設定画面が表示されます"
 }
 
 echo "🎯 Claude Pro Dev 準備完了！"
