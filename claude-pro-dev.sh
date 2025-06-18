@@ -270,14 +270,24 @@ exit-project() {
 alias st='status'
 alias pg='progress'
 
-# Claude起動補助
+# Claude起動補助（すでに起動している場合のチェック付き）
 start-claude() {
     echo "🚀 全ペインでClaudeを起動します..."
+    
+    # QAペイン
+    tmux send-keys -t "$QA_PANE" "" C-m
+    sleep 0.2
     tmux send-keys -t "$QA_PANE" "claude" C-m
+    
+    # 開発チーム
     for pane in \${TEAM_PANES[@]}; do
+        tmux send-keys -t "\$pane" "" C-m
+        sleep 0.2
         tmux send-keys -t "\$pane" "claude" C-m
     done
+    
     echo "✅ 起動コマンドを送信しました"
+    echo "※ すでに起動している場合は無視してください"
 }
 
 echo "🎯 Claude Pro Dev 準備完了！"
