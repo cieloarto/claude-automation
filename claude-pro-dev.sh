@@ -297,7 +297,7 @@ qa-approve() {
     declare -A pane_map=([A]=2 [B]=3 [C]=4 [D]=5)
     local pane="${pane_map[$team]}"
     
-    tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成手順: 1.git add . 2.git commit -m 'feat: $current_task' 3.git push 4.gh pr create 完了後マネージャーペインで'pr-created $team'実行" C-m
+    tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成手順: 1.git add . 2.git commit -m 'feat: チーム$team の $current_task' 3.git push 4.gh pr create 完了後マネージャーペインで'pr-created $team'実行" C-m
     sleep 1
     tmux send-keys -t "claude-pro-dev:0.$pane" C-m
     
