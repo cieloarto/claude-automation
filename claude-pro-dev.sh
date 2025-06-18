@@ -346,6 +346,15 @@ done
 # Claude起動待機
 echo ""
 echo "⏳ 初期化中..."
+sleep 2
+
+# 自動でClaude起動
+echo "🚀 Claudeを自動起動中..."
+tmux send-keys -t "$QA_PANE" "claude" C-m
+for i in ${!TEAM_PANES[@]}; do
+    tmux send-keys -t "${TEAM_PANES[$i]}" "claude" C-m
+done
+
 sleep 3
 
 echo ""
@@ -356,7 +365,7 @@ echo "   - requirements '<プロジェクト説明>'"
 echo "   - design"
 echo "   - implementation"
 echo ""
-echo "※ 最初に 'start-claude' を実行してClaudeを起動してください"
+echo "※ Claudeが自動起動されています（初回は設定画面が表示される場合があります）"
 echo ""
 echo "アタッチ中..."
 sleep 1
