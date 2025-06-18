@@ -133,13 +133,8 @@ requirements() {
     export DEVELOPMENT_PHASE="requirements"
     echo "[MANAGER] 要件定義フェーズを開始: \$project_desc"
     
-    # QAペインでClaudeに指示を送信
-    tmux send-keys -t "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。" C-m
-    tmux send-keys -t "$QA_PANE" "以下の形式でdocs/requirements/requirements.mdに保存してください：" C-m
-    tmux send-keys -t "$QA_PANE" "1. プロジェクト概要" C-m
-    tmux send-keys -t "$QA_PANE" "2. 機能要件" C-m
-    tmux send-keys -t "$QA_PANE" "3. 非機能要件" C-m
-    tmux send-keys -t "$QA_PANE" "4. 制約事項" C-m
+    # QAペインでClaudeに指示を送信（1つのメッセージとして）
+    tmux send-keys -t "$QA_PANE" "プロジェクト『\$project_desc』の要件定義書を作成してください。以下の形式でdocs/requirements/requirements.mdに保存してください：1. プロジェクト概要、2. 機能要件、3. 非機能要件、4. 制約事項" C-m
 }
 
 # 設計フェーズ
@@ -147,11 +142,8 @@ design() {
     export DEVELOPMENT_PHASE="design"
     echo "[MANAGER] 設計フェーズを開始"
     
-    # QAペインでClaudeに指示を送信
-    tmux send-keys -t "$QA_PANE" "要件定義書を基に、以下の設計書を作成してください：" C-m
-    tmux send-keys -t "$QA_PANE" "1. docs/design/architecture.md - システムアーキテクチャ設計" C-m
-    tmux send-keys -t "$QA_PANE" "2. docs/design/database.md - データベース設計（必要な場合）" C-m
-    tmux send-keys -t "$QA_PANE" "3. docs/tasks/task-breakdown.md - タスク分解" C-m
+    # QAペインでClaudeに指示を送信（1つのメッセージとして）
+    tmux send-keys -t "$QA_PANE" "要件定義書を基に、以下の設計書を作成してください：1. docs/design/architecture.md - システムアーキテクチャ設計、2. docs/design/database.md - データベース設計（必要な場合）、3. docs/tasks/task-breakdown.md - タスク分解" C-m
 }
 
 # 実装フェーズ
@@ -308,15 +300,17 @@ cat > "$WORKSPACE_DIR/banner-qa.txt" << 'EOF'
 ║    QA & テストチーム               ║
 ╚════════════════════════════════════╝
 
-Claude起動: claude
+Claude起動中...
 EOF
 
 # 各ペインでセットアップ
 # マネージャー
 tmux send-keys -t "$MANAGER_PANE" "source .setup-manager.sh && source .commands.sh && clear && cat banner-manager.txt" C-m
 
-# QA
+# QA - セットアップ後に自動でClaude起動
 tmux send-keys -t "$QA_PANE" "source .setup-qa.sh && clear && cat banner-qa.txt" C-m
+sleep 1
+tmux send-keys -t "$QA_PANE" "claude" C-m
 
 # 開発チーム
 for i in ${!TEAM_PANES[@]}; do
@@ -335,22 +329,28 @@ EOF
 ║       開発チーム $team_letter              ║
 ╚════════════════════════════════════╝
 
-Claude起動: claude
+Claude起動中...
 EOF
 
     tmux send-keys -t "${TEAM_PANES[$i]}" "source .setup-team-$i.sh && clear && cat banner-team-$i.txt" C-m
+    sleep 0.5
+    # 自動でClaude起動
+    tmux send-keys -t "${TEAM_PANES[$i]}" "claude" C-m
 done
 
 echo ""
 echo "🎉 セットアップ完了！"
 echo ""
+echo "⏳ Claudeを各ペインで起動中..."
+sleep 3
+echo ""
 echo "📋 開始手順:"
-echo "1. 各ペイン（QAと開発チーム）で 'claude' を実行"
-echo "2. マネージャーペインで以下を実行:"
-echo "   - import-knowledge '<URL>' '<説明>'"
+echo "マネージャーペインで以下を実行:"
 echo "   - requirements '<プロジェクト説明>'"
 echo "   - design"
 echo "   - implementation"
+echo ""
+echo "※ Claudeの起動に失敗した場合は、各ペインで手動で 'claude' を実行してください"
 echo ""
 echo "アタッチ中..."
 sleep 1
