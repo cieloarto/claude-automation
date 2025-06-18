@@ -90,10 +90,10 @@ help() {
 claude-all() {
     echo "🚀 各ペインでClaudeを起動します..."
     # QAペイン
-    tmux send-keys -t "claude-pro-dev:0.1" "claude" C-m
+    tmux send-keys -t "claude-pro-dev:0.1" "claude --dangerously-skip-permissions" C-m
     # 開発チーム
     for i in {2..5}; do
-        tmux send-keys -t "claude-pro-dev:0.$i" "claude" C-m
+        tmux send-keys -t "claude-pro-dev:0.$i" "claude --dangerously-skip-permissions" C-m
     done
 }
 
@@ -471,11 +471,11 @@ done
     echo "🚀 Claudeを自動起動中..."
     
     # QAペイン
-    tmux send-keys -t "$SESSION_NAME:0.1" "claude" C-m
+    tmux send-keys -t "$SESSION_NAME:0.1" "claude --dangerously-skip-permissions" C-m
     
     # 開発チーム
     for i in {2..5}; do
-        tmux send-keys -t "$SESSION_NAME:0.$i" "claude" C-m
+        tmux send-keys -t "$SESSION_NAME:0.$i" "claude --dangerously-skip-permissions" C-m
         sleep 0.5
     done
 } &
