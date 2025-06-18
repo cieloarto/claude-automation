@@ -96,6 +96,9 @@ export DEVELOPMENT_PHASE="requirements"
 help() {
     echo "📚 Claude Pro Dev - 利用可能なコマンド"
     echo ""
+    echo "【初期設定】"
+    echo "  start-claude - 全ペインでClaudeを起動（最初に実行）"
+    echo ""
     echo "【開発フェーズ】"
     echo "  requirements '<説明>'     - 要件定義フェーズ開始"
     echo "  design                   - 設計フェーズ開始"
@@ -228,9 +231,11 @@ progress() {
     
     tmux send-keys -t "$QA_PANE" "現在の進捗状況を報告してください。" C-m
     
-    for i in \${!TEAM_PANES[@]}; do
-        local team_letter=\$(printf "\x\$(printf %x \$((65 + i)))")
-        tmux send-keys -t "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 現在の進捗状況を報告してください。" C-m
+    for i in 0 1 2 3; do
+        if [ \$i -lt \${#TEAM_PANES[@]} ]; then
+            local team_letter=\$(printf "\x\$(printf %x \$((65 + i)))")
+            tmux send-keys -t "\${TEAM_PANES[\$i]}" "チーム\$team_letter: 現在の進捗状況を報告してください。" C-m
+        fi
     done
 }
 
