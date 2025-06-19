@@ -511,8 +511,8 @@ clear-all() {
 }
 
 exit-project() {
+    echo "🔚 プロジェクトセッションを終了します..."
     tmux kill-session -t "\$SESSION_NAME"
-    exit 0
 }
 EOF
 }
