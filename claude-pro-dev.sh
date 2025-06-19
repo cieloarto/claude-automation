@@ -227,7 +227,7 @@ team-done() {
     # QAチームにテスト依頼
     echo "🔍 QAチームにテスト確認を依頼"
     tmux send-keys -t "claude-pro-dev:0.1" "QAテスト依頼: チーム$team が『$completed_task』完了。テスト・レビュー後マネージャーペインで'qa-approve $team \"$completed_task\"'実行してください。" C-m
-    sleep 1
+    sleep 2
     tmux send-keys -t "claude-pro-dev:0.1" C-m
     
     # チームを一時的にQA待ち状態に
@@ -298,7 +298,7 @@ qa-approve() {
     local pane="${pane_map[$team]}"
     
     tmux send-keys -t "claude-pro-dev:0.$pane" "QA承認完了！PR作成手順: 1.git add . 2.git commit -m 'feat: チーム$team の $current_task' 3.git push 4.gh pr create 完了後マネージャーペインで'pr-created $team'実行" C-m
-    sleep 1
+    sleep 2
     tmux send-keys -t "claude-pro-dev:0.$pane" C-m
     
     # チームをPR作成待ち状態に
