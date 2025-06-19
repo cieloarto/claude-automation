@@ -64,8 +64,8 @@ get_project_name() {
 
 # 関数: チーム数入力
 get_team_count() {
-    echo "👥 開発チーム数を選択してください (偶数のみ):"
-    echo "  2, 4, 6, 8 のいずれかを入力 (デフォルト: 4)"
+    echo "👥 開発チーム数を選択してください (偶数のみ):" >&2
+    echo "  2, 4, 6, 8 のいずれかを入力 (デフォルト: 4)" >&2
     
     while true; do
         read -p "チーム数 [4]: " team_count
@@ -83,11 +83,11 @@ get_team_count() {
                     return 0
                     ;;
                 *)
-                    echo "❌ 2, 4, 6, 8 のいずれかを入力してください。"
+                    echo "❌ 2, 4, 6, 8 のいずれかを入力してください。" >&2
                     ;;
             esac
         else
-            echo "❌ 数字を入力してください。"
+            echo "❌ 数字を入力してください。" >&2
         fi
     done
 }
@@ -132,10 +132,12 @@ create_layout() {
             tmux split-window -h -t "$session_name:0.2" -p 50
             tmux select-pane -t "$session_name:0.0"
             tmux split-window -v -t "$session_name:0.0" -p 70
-            for i in {2..4}; do
-                tmux select-pane -t "$session_name:0.$((i*2))"
-                tmux split-window -v -t "$session_name:0.$((i*2))" -p 50
-            done
+            tmux select-pane -t "$session_name:0.2"
+            tmux split-window -v -t "$session_name:0.2" -p 50
+            tmux select-pane -t "$session_name:0.4"
+            tmux split-window -v -t "$session_name:0.4" -p 50
+            tmux select-pane -t "$session_name:0.6"
+            tmux split-window -v -t "$session_name:0.6" -p 50
             ;;
         8)
             # 8チーム: [PM][TeamA][TeamC][TeamE][TeamG]
@@ -146,10 +148,14 @@ create_layout() {
             tmux split-window -h -t "$session_name:0.3" -p 50
             tmux select-pane -t "$session_name:0.0"
             tmux split-window -v -t "$session_name:0.0" -p 70
-            for i in {2..5}; do
-                tmux select-pane -t "$session_name:0.$((i*2))"
-                tmux split-window -v -t "$session_name:0.$((i*2))" -p 50
-            done
+            tmux select-pane -t "$session_name:0.2"
+            tmux split-window -v -t "$session_name:0.2" -p 50
+            tmux select-pane -t "$session_name:0.4"
+            tmux split-window -v -t "$session_name:0.4" -p 50
+            tmux select-pane -t "$session_name:0.6"
+            tmux split-window -v -t "$session_name:0.6" -p 50
+            tmux select-pane -t "$session_name:0.8"
+            tmux split-window -v -t "$session_name:0.8" -p 50
             ;;
     esac
 }
