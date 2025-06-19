@@ -172,13 +172,15 @@ setup_environment() {
     mkdir -p "$project_dir/docs"/{requirements,design,tasks,tests,knowledge}
     
     # プロンプト設定
-    cat > "$project_dir/.setup-manager.sh" << 'EOF'
+    cat > "$project_dir/.setup-manager.sh" << EOF
 export PS1='PM> '
+export SESSION_NAME="$session_name"
 source .commands.sh
 EOF
 
-    cat > "$project_dir/.setup-qa.sh" << 'EOF'
+    cat > "$project_dir/.setup-qa.sh" << EOF
 export PS1='QA> '
+export SESSION_NAME="$session_name"
 source .commands.sh
 EOF
 
@@ -552,10 +554,10 @@ initialize_panes() {
     local project_dir="$3"
     
     # マネージャー (左上)
-    tmux send-keys -t "$session_name:0.0" "cd $project_dir && source .setup-manager.sh && SESSION_NAME=$session_name && sleep 1 && clear && cat banner-manager.txt" C-m
+    tmux send-keys -t "$session_name:0.0" "cd $project_dir && source .setup-manager.sh && sleep 1 && clear && cat banner-manager.txt" C-m
     
     # QA (左下)
-    tmux send-keys -t "$session_name:0.1" "cd $project_dir && source .setup-qa.sh && SESSION_NAME=$session_name && sleep 1 && clear && cat banner-qa.txt" C-m
+    tmux send-keys -t "$session_name:0.1" "cd $project_dir && source .setup-qa.sh && sleep 1 && clear && cat banner-qa.txt" C-m
     
     # 開発チーム
     for ((i=0; i<team_count; i++)); do
@@ -564,10 +566,11 @@ initialize_panes() {
         
         cat > "$project_dir/.setup-team-$pane_num.sh" << EOF
 export PS1='T$team_letter> '
+export SESSION_NAME="$session_name"
 source "$project_dir/.commands.sh"
 EOF
         
-        tmux send-keys -t "$session_name:0.$pane_num" "cd $project_dir && source .setup-team-$pane_num.sh && SESSION_NAME=$session_name && sleep 1 && clear && cat banner-team-$pane_num.txt" C-m
+        tmux send-keys -t "$session_name:0.$pane_num" "cd $project_dir && source .setup-team-$pane_num.sh && sleep 1 && clear && cat banner-team-$pane_num.txt" C-m
     done
 }
 
